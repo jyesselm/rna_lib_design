@@ -1,0 +1,17 @@
+seq_1,seq_2,ss_1,ss_2
+CUC,GAG,(((,)))
+CGG,CCG,(((,)))
+AAU,AUU,(((,)))
+CCU,AGG,(((,)))
+AGC,GCU,(((,)))
+UGA,UCA,(((,)))
+GAC,GUC,(((,)))
+AUG,CAU,(((,)))
+GCG,CGC,(((,)))
+GGU,ACC,(((,)))
+UUU,AAA,.((,)).
+CAA,UUG,(((,)))
+UCC,GGA,(((,)))
+ACA,UGU,(((,)))
+UAG,CUA,(((,)))
+GUA,UAC,(((,)))

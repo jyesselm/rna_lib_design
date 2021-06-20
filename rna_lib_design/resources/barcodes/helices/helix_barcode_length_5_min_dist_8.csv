@@ -1,0 +1,8 @@
+seq_1,seq_2,ss_1,ss_2,total_dots
+AGAAU,AUUCU,(((((,))))),0
+GGUGG,CCAUC,(((((,))))),0
+UAAUC,GAUUA,(((((,))))),0
+AUUUA,UGGAU,(((((,))))),0
+CUGGU,GCUAG,(((((,))))),0
+GUCAC,GUGGC,(((((,))))),0
+UCGCG,UGCGG,.((((,)))).,2

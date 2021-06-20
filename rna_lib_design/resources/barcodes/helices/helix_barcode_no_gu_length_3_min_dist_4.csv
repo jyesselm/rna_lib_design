@@ -1,0 +1,17 @@
+seq_1,seq_2,ss_1,ss_2,total_dots
+CUC,GAG,(((,))),0
+CGG,CCG,(((,))),0
+AAU,AUU,(((,))),0
+CCU,AGG,(((,))),0
+AGC,GCU,(((,))),0
+UGA,UCA,(((,))),0
+GAC,GUC,(((,))),0
+AUG,CAU,(((,))),0
+GCG,CGC,(((,))),0
+GGU,ACC,(((,))),0
+CAA,UUG,(((,))),0
+UCC,GGA,(((,))),0
+ACA,UGU,(((,))),0
+UAG,CUA,(((,))),0
+GUA,UAC,(((,))),0
+UUU,AAA,.((,)).,2
