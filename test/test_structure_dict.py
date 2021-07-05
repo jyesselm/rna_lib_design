@@ -1,4 +1,4 @@
-from seq_tools import structure_dict, settings, structure
+from rna_lib_design import structure_dict, settings, structure
 
 
 def test_sstrand():
@@ -22,6 +22,18 @@ def test_helix_apply_next():
     struct1 = structure.rna_structure("GGGAAAACCC", "(((....)))")
     helix = sd.get_next()
     struct2 = helix[0] + struct1 + helix[1]
+
+
+def test_hairpin_apply_next():
+    path = settings.RESOURCES_PATH + "/barcodes/helices/helix_barcode_length_5_min_dist_2.csv"
+    helices = structure_dict.HelixDict(path)
+    loop = structure.rna_structure('CGAGUAG', '(.....)')
+    sd = structure_dict.HairpinDict(helices, loop)
+    struct1 = structure.rna_structure("GGGAAAACCC", "(((....)))")
+    hp = sd.get_next()
+    final = hp + struct1
+    assert len(final) == 30
+
 
 
 def test_apply():

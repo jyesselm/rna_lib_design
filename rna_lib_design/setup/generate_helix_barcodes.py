@@ -1,6 +1,7 @@
 import random
 
-from seq_tools import vienna
+import vienna
+from rna_lib_design.util import max_gc_stretch, max_stretch, hamming, random_helix
 
 def generate_barcodes(length, min_distance):
     barcodes = []

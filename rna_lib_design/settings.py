@@ -7,6 +7,6 @@ def get_lib_path():
     return base_dir
 
 LIB_PATH = get_lib_path()
-RESOURCES_PATH = LIB_PATH + "/seq_tools/resources/"
+RESOURCES_PATH = LIB_PATH + "/rna_lib_design/resources/"
 UNITTEST_PATH = LIB_PATH + "/tests/"
 DATA_PATH = LIB_PATH + "/data/"

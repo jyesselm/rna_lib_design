@@ -4,20 +4,20 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 setup(
-    name='seq_tools',
-    version='0.0.2',
-    author='Joe Yesselman',
-    author_email='jyesselm@unl.edu',
-    packages=["seq_tools"],
-    py_modules=["seq_tools/motif", "seq_tools/structure", "seq_tools/barcoder",
-                "seq_tools/logger", "seq_tools/util", "seq_tools/vienna", "seq_tools/clt"],
-    include_package_data=True,
-    install_requires=requirements,
-    entry_points={
-        'console_scripts': [
-            'seq_tools = seq_tools.clt:main',
-            'gen_opool = seq_tools.clt:gen_opool'
-        ]
-    }
+        name='rna_lib_design',
+        version='0.0.2',
+        author='Joe Yesselman',
+        author_email='jyesselm@unl.edu',
+        packages=["rna_lib_design"],
+        py_modules=[
+            "rna_lib_design/structure",
+            "rna_lib_design/logger",
+            "rna_lib_design/util",
+            "rna_lib_design/structure_dict"
+        ],
+        include_package_data=True,
+        install_requires=requirements,
+        entry_points={
+        }
 
 )

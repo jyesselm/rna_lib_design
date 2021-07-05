@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 
-from seq_tools import structure, settings
+from rna_lib_design import structure, settings
 
 
 class StructureDict(object):
@@ -14,7 +14,13 @@ class StructureDict(object):
     def last_was_used(self):
         pass
 
+    def set_used(self, i):
+        pass
+
     def is_done(self):
+        pass
+
+    def list_used(self):
         pass
 
     def apply_next(self, struct) -> structure.Structure:
@@ -50,6 +56,15 @@ class SStrandDict(StructureDict):
 
     def last_was_used(self):
         self.used[self.last] = 1
+
+    def set_used(self, i):
+        self.used[i] = 1
+
+    def list_used(self):
+        s = ""
+        for i in self.used:
+            s += self.df.loc[i]["seq"] + ","
+        return s
 
     def is_done(self):
         if len(self.used) == len(self.df):
@@ -89,9 +104,9 @@ class HelixDict(StructureDict):
                 print("cannot get_next! exiting")
                 exit()
             i = random.randrange(1, len(self.df))
-            row = self.df.loc[i]
-            if row["seq_1"] + row["seq_2"] in self.used:
+            if i in self.used:
                 continue
+            row = self.df.loc[i]
             if not self.trim_structs:
                 s1 = structure.rna_structure(row["seq_1"], row["ss_1"])
                 s2 = structure.rna_structure(row["seq_2"], row["ss_2"])
@@ -99,12 +114,22 @@ class HelixDict(StructureDict):
                 new_len = len(row["seq_1"]) - self.trim
                 s1 = structure.rna_structure(row["seq_1"][:new_len], row["ss_1"][:new_len])
                 s2 = structure.rna_structure(row["seq_2"][self.trim:], row["ss_2"][self.trim:])
-            self.last = row["seq_1"] + row["seq_2"]
+            self.last = i
             break
         return [s1, s2]
 
     def last_was_used(self):
         self.used[self.last] = 1
+
+    def set_used(self, i):
+        self.used[i] = 1
+
+    def list_used(self):
+        s = ""
+        for i in self.used:
+            row = self.df.loc[i]
+            s += row["seq_1"] + "&" + row["seq_2"] + ","
+        return s
 
     def is_done(self):
         if len(self.used) == len(self.df):
@@ -115,10 +140,56 @@ class HelixDict(StructureDict):
         return s1 + struct + s2
 
 
+class HairpinDict(StructureDict):
+    def __init__(
+            self, helix_dict, loop, type="LEFT", buffer=structure.rna_structure_unpaired('AAA')):
+        self.helix_dict = helix_dict
+        self.buffer = buffer
+        self.type = type
+        self.loop = loop
+
+    def set_trim(self, trim):
+        self.helix_dict.set_trim(trim)
+
+    def get_next(self):
+        while 1:
+            h1, h2 = self.helix_dict.get_next()
+            hp = h1 + self.loop + h2
+            if self.buffer is not None:
+                if self.type == 'LEFT':
+                    hp += self.buffer
+                else:
+                    hp = self.buffer + hp
+            return hp
+
+    def last_was_used(self):
+        self.helix_dict.last_was_used()
+
+    def set_used(self, i):
+        self.helix_dict.set_used(i)
+
+    def list_used(self):
+        return self.helix_dict.list_used()
+
+    def is_done(self):
+        return self.helix_dict.is_done()
+
+    def apply_next(self, struct) -> structure.Structure:
+        if self.type == "LEFT":
+            return self.get_next() + struct
+        else:
+            return struct + self.get_next()
+
+    @property
+    def last(self):
+        return self.helix_dict.last
+
+
 class SingleDict(StructureDict):
     def __init__(self, struct, type="LEFT"):
         self.struct = struct
         self.type = type
+        self.last = 1
 
     def get_next(self) -> structure.Structure:
         return self.struct
@@ -180,9 +251,14 @@ def get_helices(length, max_count=200):
     return HelixDict(data_fname)
 
 
-def get_sstrands(length, max_count=200):
+def get_hairpins(h_length, loop, max_count=200, type="LEFT"):
+    helix_dict = get_helices(h_length, max_count)
+    return HairpinDict(helix_dict, loop, type=type)
+
+
+def get_sstrands(length, max_count=200, type="LEFT"):
     r_min, r_max = 5, 29
     fname = settings.RESOURCES_PATH + "/barcodes/sstrand/"
     if length < r_min or length > r_max:
         raise ValueError(f"no sstrand available with length {length}")
-    return SStrandDict(fname + f"/{length}_no_gg.csv")
+    return SStrandDict(fname + f"/{length}_no_gg.csv", type="LEFT")

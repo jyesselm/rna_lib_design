@@ -1,5 +1,5 @@
-from seq_tools.structure import Sequence, rna_sequence, dna_sequence, DotBracket
-from seq_tools.structure import Structure, rna_structure, rna_sequence
+from rna_lib_design.structure import Sequence, rna_sequence, dna_sequence, DotBracket
+from rna_lib_design.structure import Structure, rna_structure, rna_sequence
 import pytest
 
 #######################################################################################

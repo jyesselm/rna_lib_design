@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 
-from seq_tools import params
+from rna_lib_design import params
 
 
 def check_cols_in_dataframe(df, cols):

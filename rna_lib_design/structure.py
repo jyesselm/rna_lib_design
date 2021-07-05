@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import collections as col
 
-from seq_tools import settings
+from rna_lib_design import settings
 
 
 class Sequence(object):
