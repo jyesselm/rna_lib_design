@@ -34,9 +34,13 @@ class SStrandDict(StructureDict):
         self.df = self.df.sample(frac=1).reset_index(drop=True)
         self.last = -1
         self.used = {}
+        self.trim = 0
 
     def __len__(self):
         return len(self.df)
+
+    def set_trim(self, trim):
+        self.trim = trim
 
     def get_next(self) -> structure.Structure:
         count = 0
@@ -49,7 +53,11 @@ class SStrandDict(StructureDict):
             row = self.df.loc[i]
             if row["seq"] in self.used:
                 continue
-            s = structure.rna_structure(row["seq"], row["ss"])
+            seq, ss = row["seq"], row["ss"]
+            if self.trim != 0:
+                seq = seq[0:-self.trim]
+                ss = ss[0:-self.trim]
+            s = structure.rna_structure(seq, ss)
             self.last = row["seq"]
             break
         return s
@@ -258,7 +266,17 @@ def get_hairpins(h_length, loop, max_count=200, type="LEFT"):
 
 def get_sstrands(length, max_count=200, type="LEFT"):
     r_min, r_max = 5, 29
-    fname = settings.RESOURCES_PATH + "/barcodes/sstrand/"
-    if length < r_min or length > r_max:
-        raise ValueError(f"no sstrand available with length {length}")
-    return SStrandDict(fname + f"/{length}_no_gg.csv", type="LEFT")
+    fname = settings.RESOURCES_PATH + "/barcodes/sstrand.csv"
+    df = pd.read_csv(fname)
+    df = df[df["length"] == length]
+    if len(df) == 0:
+        raise ValueError(f"no helices available with length {length}")
+    df = df.sort_values(["count"])
+    data_fname = None
+    for i, row in df.iterrows():
+        if max_count < row["count"]:
+            data_fname = row["path"]
+            break
+    if data_fname is None:
+        raise ValueError(f"no helices available with length {length} with max_count {max_count}")
+    return SStrandDict(data_fname, type=type)

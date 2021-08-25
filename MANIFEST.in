@@ -1,0 +1,2 @@
+include README.md
+recursive-include rna_lib_design/resources *.csv
