@@ -14,6 +14,7 @@ setup(
             "rna_lib_design/logger",
             "rna_lib_design/util",
             "rna_lib_design/structure_dict"
+            "rna_lib_design/design"
         ],
         include_package_data=True,
         install_requires=requirements,
