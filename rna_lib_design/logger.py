@@ -1,40 +1,26 @@
 import logging
-import colorlog
+import sys
+
+APP_LOGGER_NAME = 'rna_lib_design'
 
 
-def init_logger(dunder_name, testing_mode=False, log_outfile=None) -> logging.Logger:
-    log_format = (
-        "[%(asctime)s " "%(name)s " "%(funcName)s] " "%(levelname)s " "%(message)s"
-    )
-    bold_seq = "\033[1m"
-    colorlog_format = f"{bold_seq}" "%(log_color)s" f"{log_format}"
-    logger = logging.getLogger(dunder_name)
-    # colorlog.basicConfig(format=colorlog_format, datefmt="%H:%M")
-    handler = colorlog.StreamHandler()
-    handler.setFormatter(
-        colorlog.ColoredFormatter(
-            colorlog_format,
-            datefmt="%H:%M",
-            reset=True,
-            log_colors={
-                "DEBUG": "cyan",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red,bg_white",
-            },
-        )
-    )
+def setup_applevel_logger(logger_name=APP_LOGGER_NAME,
+                          is_debug=True,
+                          file_name=None):
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG if is_debug else logging.INFO)
 
-    logger.addHandler(handler)
+    formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    if log_outfile is not None:
-        fileHandler = logging.FileHandler(log_outfile)
-        fileHandler.setFormatter(logging.Formatter(log_format))
-        logger.addHandler(fileHandler)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(formatter)
+    logger.handlers.clear()
+    logger.addHandler(sh)
 
-    if testing_mode:
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
+    if file_name:
+        fh = logging.FileHandler(file_name)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
 
     return logger

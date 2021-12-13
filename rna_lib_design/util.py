@@ -38,6 +38,10 @@ def random_basepair():
     return random.choice(params.basepairs)
 
 
+def random_gu_basepair():
+    return random.choice(params.basepairs_gu)
+
+
 def hamming(a, b):
     """ hamming distance between two strings """
     dist = 0
@@ -94,11 +98,13 @@ def max_gc_stretch(s1, s2):
 def random_helix(length, gu=0):
     seq_1 = ""
     seq_2 = ""
-    for i in range(0, length):
-        if not gu:
-            bp = random_wc_basepair()
-        else:
-            bp = random_basepair()
+    bps = []
+    for i in range(0, gu):
+        bps.append(random_gu_basepair())
+    for i in range(0, length-gu):
+        bps.append(random_basepair())
+    random.shuffle(bps)
+    for bp in bps:
         seq_1 += bp[0]
         seq_2 = bp[1] + seq_2
     return [seq_1, seq_2]

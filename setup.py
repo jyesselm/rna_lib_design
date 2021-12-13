@@ -13,12 +13,16 @@ setup(
             "rna_lib_design/structure",
             "rna_lib_design/logger",
             "rna_lib_design/util",
-            "rna_lib_design/structure_dict"
-            "rna_lib_design/design"
+            "rna_lib_design/structure_dict",
+            "rna_lib_design/design",
+            "rna_lib_design/setup_resources"
         ],
         include_package_data=True,
         install_requires=requirements,
         entry_points={
+            'console_scripts': [
+                'rld_setup = rna_lib_design.setup_resources:cli',
+            ]
         }
 
 )

@@ -27,3 +27,17 @@ def get_solution(sd_dicts, struct, cutoff=5.0, max_count=1000, keep_best=10):
     for i, bu in enumerate(best_uses):
         sd_dicts[i].set_used(bu)
     return best, best_score
+
+
+def write_results_to_csv(constructs, fname='final'):
+    f_rna = open(fname + '_rna.csv', "w")
+    f_rna.write("name,sequence,structure,ens_defect\n")
+    f_dna = open(fname + "_dna.csv", "w")
+    f_dna.write("name,sequence\n")
+    for c in constructs:
+        f_rna.write(
+                c[0] + "," + c[1].sequence.str() + "," + str(c[1].dot_bracket) + "," +
+                str(c[2]) + "\n")
+        f_dna.write(c[0] + "," + 'TTCTAATACGACTCACTATA'+c[1].sequence.to_dna().str() + "\n")
+    f_rna.close()
+    f_dna.close()

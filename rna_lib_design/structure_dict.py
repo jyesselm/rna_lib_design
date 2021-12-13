@@ -280,3 +280,16 @@ def get_sstrands(length, max_count=200, type="LEFT"):
     if data_fname is None:
         raise ValueError(f"no helices available with length {length} with max_count {max_count}")
     return SStrandDict(data_fname, type=type)
+
+
+def get_common_seq(type, name, direction="LEFT"):
+    common_structs = structure.common_structures()
+    return SingleDict(common_structs[type][name], type=direction)
+
+
+def get_tail():
+    return get_common_seq('3PRIME', 'rt_tail', direction='RIGHT')
+
+
+def get_p5(name):
+    return get_common_seq('5PRIME', name)
