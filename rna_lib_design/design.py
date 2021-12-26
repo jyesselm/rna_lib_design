@@ -1,5 +1,5 @@
 import vienna
-from rna_lib_design import structure_dict
+from rna_lib_design import structure_set
 
 def get_solution(sd_dicts, struct, cutoff=5.0, max_count=1000, keep_best=10):
     count = 0
@@ -41,3 +41,11 @@ def write_results_to_csv(constructs, fname='final'):
         f_dna.write(c[0] + "," + 'TTCTAATACGACTCACTATA'+c[1].sequence.to_dna().str() + "\n")
     f_rna.close()
     f_dna.close()
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    main()

@@ -29,7 +29,10 @@ class Sequence(object):
         else:
             return str(self) == other
 
-    def __add__(self, other: Sequence) -> Sequence:
+    def __add__(self, other):
+        if type(other) == str:
+            return str(self) + other
+
         if self.__seq_type != other.__seq_type:
             raise ValueError(
                     "cannot add {} to {} they are not of the same sequence type".format(
@@ -37,6 +40,12 @@ class Sequence(object):
                     )
             )
         return Sequence(self.__seq + other.__seq, self.__seq_type)
+
+    def __radd__(self, other):
+        if type(other) == str:
+            return other + str(self)
+        else:
+            raise TypeError(f"cannot add {type(other)} to Sequence")
 
     def __getitem__(self, item):
         return Sequence(self.__seq[item], self.__seq_type)
@@ -102,10 +111,6 @@ class Sequence(object):
     def str(self) -> str:
         return str(self)
 
-    @property
-    def seq(self):
-        return "".join(self.__seq)
-
     # private
     def __convert_to_dna(self, seq):
         new_seq = []
@@ -169,9 +174,9 @@ bracket_right = {x: i for i, x in enumerate(")]}>abcdefghijklmnopqrstuvwxyz")}
 
 class DotBracket(object):
     def __init__(self, dot_bracket_str):
+        self.__is_valid = 1
         self.__dot_bracket = list(dot_bracket_str)
         self.__pairs = self.__assign_pairs()
-        self.__is_valid = 1
 
     def __str__(self):
         return "".join(self.__dot_bracket)
@@ -179,8 +184,16 @@ class DotBracket(object):
     def __len__(self):
         return len(self.__dot_bracket)
 
-    def __add__(self, other: DotBracket) -> DotBracket:
+    def __add__(self, other):
+        if type(other) == str:
+            return str(self) + other
         return DotBracket(self.__dot_bracket + other.__dot_bracket)
+
+    def __radd__(self, other):
+        if type(other) == str:
+            return other + str(self)
+        else:
+            raise TypeError(f"cannot add {type(other)} to DotBracket")
 
     def __eq__(self, other):
         if type(other) == DotBracket:
@@ -319,7 +332,7 @@ class Structure(object):
     def __str__(self):
         return str(self.__sequence) + " " + str(self.__dot_bracket)
 
-    def __add__(self, other: Structure):
+    def __add__(self, other):
         return Structure(
                 self.__sequence + other.__sequence, self.__dot_bracket + other.__dot_bracket
         )
@@ -429,11 +442,7 @@ def common_structures():
     structures = {}
     df = common_structure_dataframe()
     for i, row in df.iterrows():
-        structures[row["type"]] = {}
-    for i, row in df.iterrows():
-        structures[row["type"]][row["name"]] = rna_structure(row["sequence"], row["structure"])
+        structures[row["name"]] = rna_structure(row["sequence"], row["structure"])
     return structures
 
 
-def structures_from_csv(fname):
-    pass
