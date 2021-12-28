@@ -1,5 +1,5 @@
 from rna_lib_design.structure import Sequence, rna_sequence, dna_sequence, DotBracket
-from rna_lib_design.structure import Structure, rna_structure, rna_sequence
+from rna_lib_design.structure import Structure, rna_structure, rna_sequence, common_structures
 import pytest
 
 
@@ -171,4 +171,10 @@ def test_remove_bp():
 #######################################################################################
 # function tests                                                                      #
 #######################################################################################
+
+def test_common_structures():
+    common_structs = common_structures()
+    struct = common_structs['ref_hairpin_5prime']
+    assert struct.sequence == 'GGAAGAUCGAGUAGAUCAAA'
+    assert struct.dot_bracket == '....((((.....))))...'
 

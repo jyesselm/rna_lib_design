@@ -444,3 +444,7 @@ def common_structures():
     for i, row in df.iterrows():
         structures[row["name"]] = rna_structure(row["sequence"], row["structure"])
     return structures
+
+def get_common_struct(name):
+    common_structs = common_structures()
+    return common_structs[name]

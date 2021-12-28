@@ -147,3 +147,14 @@ def test_get_hairpins():
     assert len(struct) == 16
 
 
+def test_get_sstrands():
+    struct_set = structure_set.get_optimal_sstrand_set(5, 10)
+    assert len(struct_set) > 10
+    struct = struct_set.get(0)[0]
+    assert len(struct) == 5
+    assert struct.dot_bracket == '.....'
+
+
+def get_common_seq_structure_set():
+    struct_set = structure_set.get_common_seq_structure_set('ref_hairpin_5prime')
+    assert len(struct_set) == 1

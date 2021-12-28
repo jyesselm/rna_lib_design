@@ -178,18 +178,10 @@ def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
 
 
 def get_common_seq_structure_set(name, type=AddType.LEFT):
-    pass
-
-"""
-def get_common_seq(name, direction="LEFT"):
-    common_structs = structure.common_structures()
-    return SingleDict(common_structs[name], type=direction)
+    struct = structure.get_common_struct(name)
+    return get_single_struct_set(struct, type)
 
 
-def get_tail():
-    return get_common_seq('rt_tail', direction='RIGHT')
+def get_tail_structure_set():
+    return get_common_seq_structure_set('rt_tail', AddType.RIGHT)
 
-
-def get_p5(name):
-    return get_common_seq('5PRIME', name)
-"""
