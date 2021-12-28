@@ -128,41 +128,47 @@ def test_insert():
     assert rna_2.dot_bracket == ".((((....))))"
 
 
-"""
-    def test_insert_segment(self):
-        rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
-        rna_2 = rna_1.insert_segments("A", ".", "A", ".", 0, len(rna_1) - 1)
-        self.assertTrue(rna_2.sequence == "AGGGGAAAACCCCA")
-        self.assertTrue(rna_2.dot_bracket == ".((((....)))).")
-        rna_2 = rna_1.insert_segments("AA", "..", "AA", "..", 0, len(rna_1) - 1)
-        self.assertTrue(rna_2.sequence == "AAGGGGAAAACCCCAA")
-        self.assertTrue(rna_2.dot_bracket == "..((((....))))..")
+def test_insert_segment():
+    rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
+    rna_2 = rna_1.insert_segments("A", ".", "A", ".", 0, len(rna_1) - 1)
+    assert rna_2.sequence == "AGGGGAAAACCCCA"
+    assert rna_2.dot_bracket == ".((((....))))."
+    rna_2 = rna_1.insert_segments("AA", "..", "AA", "..", 0, len(rna_1) - 1)
+    assert rna_2.sequence == "AAGGGGAAAACCCCAA"
+    assert rna_2.dot_bracket == "..((((....)))).."
 
-    def test_insert_bp(self):
-        rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
-        rna_2 = rna_1.insert_bps("A&U", 0)
-        self.assertTrue(rna_2.sequence == "AGGGGAAAACCCCU")
-        self.assertTrue(rna_2.dot_bracket == "(((((....)))))")
-        rna_2 = rna_1.insert_bps("GA&UC", 1)
 
-    def test_remove(self):
-        rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
-        rna_2 = rna_1[1:-1]
-        self.assertTrue(rna_2.sequence == "GGGAAAACCC")
-        self.assertTrue(rna_2.dot_bracket == "(((....)))")
+def test_insert_bp():
+    rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
+    rna_2 = rna_1.insert_bps("A&U", 0)
+    assert rna_2.sequence == "AGGGGAAAACCCCU"
+    assert rna_2.dot_bracket == "(((((....)))))"
+    rna_2 = rna_1.insert_bps("GA&UC", 1)
 
-        rna_2 = rna_1.remove_segments([1, 2], [11, 12])
-        self.assertTrue(rna_2.sequence == "GGGAAAACCC")
-        self.assertTrue(rna_2.dot_bracket == "(((....)))")
 
-    def test_remove_bp(self):
-        rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
-        rna_2 = rna_1.remove_bp(0)
-        self.assertTrue(rna_2.sequence == "GGGAAAACCC")
-        self.assertTrue(rna_2.dot_bracket == "(((....)))")
+def test_remove():
+    rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
+    rna_2 = rna_1[1:-1]
+    assert rna_2.sequence == "GGGAAAACCC"
+    assert rna_2.dot_bracket == "(((....)))"
 
-        rna_1 = rna_structure("GAGGAAAACCUC", "((((....))))")
-        rna_2 = rna_1.remove_bp(1)
-        self.assertTrue(rna_2.sequence == "GGGAAAACCC")
-        self.assertTrue(rna_2.dot_bracket == "(((....)))")
-"""
+    rna_2 = rna_1.remove_segments([1, 2], [11, 12])
+    assert rna_2.sequence == "GGGAAAACCC"
+    assert rna_2.dot_bracket == "(((....)))"
+
+
+def test_remove_bp():
+    rna_1 = rna_structure("GGGGAAAACCCC", "((((....))))")
+    rna_2 = rna_1.remove_bp(0)
+    assert rna_2.sequence == "GGGAAAACCC"
+    assert rna_2.dot_bracket == "(((....)))"
+
+    rna_1 = rna_structure("GAGGAAAACCUC", "((((....))))")
+    rna_2 = rna_1.remove_bp(1)
+    assert rna_2.sequence == "GGGAAAACCC"
+    assert rna_2.dot_bracket == "(((....)))"
+
+#######################################################################################
+# function tests                                                                      #
+#######################################################################################
+

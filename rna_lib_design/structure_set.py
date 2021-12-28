@@ -76,18 +76,50 @@ class StructureSet(object):
             return s1 + struct + s2
 
 
-class HairpinStructureSet(StructureSet):
+class HairpinStructureSet(object):
     def __init__(self, loop, df, add_type):
-        super().__init__(df, add_type)
+        self.add_type = add_type
         self.loop = loop
+        self.helices = StructureSet(df, AddType.HELIX)
         self.buffer = structure.rna_structure_unpaired('AAA')
+
+    def __len__(self):
+        return len(self.helices)
 
     def set_buffer(self, struct):
         self.buffer = struct
 
+    def get(self, pos):
+        s1, s2 = self.helices.get(pos)
+        if self.buffer is not None:
+            return [s1 + self.loop + s2 + self.buffer]
+        else:
+            return [s1 + self.loop + s2]
+
+    def get_current_pos(self):
+        return self.helices.get_current_pos()
+
     def get_random(self):
-        s1, s2 = super().get_random()
-        return s1 + self.loop + s2 + self.buffer
+        s1, s2 = self.helices.get_random()
+        if self.buffer is not None:
+            return [s1 + self.loop + s2 + self.buffer]
+        else:
+            return [s1 + self.loop + s2]
+
+    def set_used(self, pos=None):
+        self.helices.set_used(pos)
+
+    def apply_random(self, struct) -> structure.Structure:
+        if self.add_type == AddType.LEFT:
+            return self.get_random()[0] + struct
+        elif self.add_type == AddType.RIGHT:
+            return struct + self.get_random()[0]
+
+    def apply(self, struct, pos) -> structure.Structure:
+        if self.add_type == AddType.LEFT:
+            return self.get(pos)[0] + struct
+        elif self.add_type == AddType.RIGHT:
+            return struct + self.get(pos)[0]
 
 
 class SingleStructureSet(StructureSet):
@@ -99,56 +131,56 @@ class SingleStructureSet(StructureSet):
         pass
 
 
-"""
+def get_single_struct_set(struct, add_type):
+    df = pd.DataFrame(columns='seq ss'.split())
+    df.loc[0] = [str(struct.sequence), str(struct.dot_bracket)]
+    return SingleStructureSet(df, add_type)
 
-def apply(struct_dicts, struct):
-    struct_dicts = struct_dicts[::-1]
+
+def apply(struct_sets, struct):
     temp_struct = struct
-    for sd in struct_dicts:
-        temp_struct = sd.apply_next(temp_struct)
+    for sd in list(struct_sets[::-1]):
+        temp_struct = sd.apply_random(temp_struct)
     return temp_struct
 
 
-def get_helices(length, max_count=200):
+def get_optimal_helix_set(length, min_count=10):
     fname = settings.RESOURCES_PATH + "/barcodes/helices.csv"
     df = pd.read_csv(fname)
     df = df[df["length"] == length]
     if len(df) == 0:
         raise ValueError(f"no helices available with length {length}")
-    df = df.sort_values(["count"])
-    data_fname = None
-    for i, row in df.iterrows():
-        if max_count < row["count"]:
-            data_fname = row["path"]
-            break
-    if data_fname is None:
-        raise ValueError(f"no helices available with length {length} with max_count {max_count}")
-    return HelixDict(data_fname)
+    df = df[df['size'] > min_count]
+    df = df.sort_values(["diff"])
+    if len(df) == 0:
+        raise ValueError(f"no helices available with length {length} with max_count {min_count}")
+    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]['path'])
+    return StructureSet(df_helix, AddType.HELIX)
 
 
-def get_hairpins(h_length, loop, max_count=200, type="LEFT"):
-    helix_dict = get_helices(h_length, max_count)
-    return HairpinDict(helix_dict, loop, type=type)
+def get_optimal_hairpin_set(length, loop_struct, min_count=10, type=AddType.LEFT):
+    h_df = get_optimal_helix_set(length, min_count).df
+    return HairpinStructureSet(loop_struct, h_df, type)
 
 
-def get_sstrands(length, max_count=200, type="LEFT"):
-    r_min, r_max = 5, 29
+def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
     fname = settings.RESOURCES_PATH + "/barcodes/sstrand.csv"
     df = pd.read_csv(fname)
     df = df[df["length"] == length]
     if len(df) == 0:
-        raise ValueError(f"no helices available with length {length}")
-    df = df.sort_values(["count"])
-    data_fname = None
-    for i, row in df.iterrows():
-        if max_count < row["count"]:
-            data_fname = row["path"]
-            break
-    if data_fname is None:
-        raise ValueError(f"no helices available with length {length} with max_count {max_count}")
-    return SStrandDict(data_fname, type=type)
+        raise ValueError(f"no sstrand available with length {length}")
+    df = df[df['size'] > min_count]
+    df = df.sort_values(["diff"])
+    if len(df) == 0:
+        raise ValueError(f"no sstrand available with length {length} with max_count {min_count}")
+    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]['path'])
+    return StructureSet(df_ss, type)
 
 
+def get_common_seq_structure_set(name, type=AddType.LEFT):
+    pass
+
+"""
 def get_common_seq(name, direction="LEFT"):
     common_structs = structure.common_structures()
     return SingleDict(common_structs[name], type=direction)
