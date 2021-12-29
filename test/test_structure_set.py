@@ -26,15 +26,17 @@ def get_test_sstrand_left():
 def get_test_hairpin_right():
     df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
     df = pd.read_csv(df_path)
-    loop = structure.rna_structure('GGAAAC', '(....)')
-    struct_set = structure_set.HairpinStructureSet(loop, df, structure_set.AddType.RIGHT)
+    loop = structure.rna_structure("GGAAAC", "(....)")
+    struct_set = structure_set.HairpinStructureSet(
+        loop, df, structure_set.AddType.RIGHT
+    )
     return struct_set
 
 
 def get_test_hairpin_left():
     df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
     df = pd.read_csv(df_path)
-    loop = structure.rna_structure('GGAAAC', '(....)')
+    loop = structure.rna_structure("GGAAAC", "(....)")
     struct_set = structure_set.HairpinStructureSet(loop, df, structure_set.AddType.LEFT)
     return struct_set
 
@@ -77,8 +79,10 @@ def test_helix_structure_set():
 def test_hairpin_structure_set():
     df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
     df = pd.read_csv(df_path)
-    loop = structure.rna_structure('GGAAAC', '(....)')
-    struct_set = structure_set.HairpinStructureSet(loop, df, structure_set.AddType.RIGHT)
+    loop = structure.rna_structure("GGAAAC", "(....)")
+    struct_set = structure_set.HairpinStructureSet(
+        loop, df, structure_set.AddType.RIGHT
+    )
     struct_1 = struct_set.get_random()[0]
     struct_set.set_used()
     struct_2 = struct_set.get_random()[0]
@@ -96,13 +100,14 @@ def test_hairpin_structure_set_no_buffer():
     hp_set.set_buffer(None)
     rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
     rna_struct_new = hp_set.apply(rna_struct, 0)
-    assert rna_struct_new.dot_bracket == '(((....)))(((((((....)))))))'
+    assert rna_struct_new.dot_bracket == "(((....)))(((((((....)))))))"
 
 
 def test_single_structure_set():
     rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
     struct_set = structure_set.get_single_struct_set(
-            rna_struct, structure_set.AddType.RIGHT)
+        rna_struct, structure_set.AddType.RIGHT
+    )
     struct_1 = struct_set.get_random()[0]
     struct_set.set_used()
     struct_2 = struct_set.get_random()[0]
@@ -138,7 +143,8 @@ def test_get_helices():
 def test_get_hairpins():
     loop = structure.rna_structure("GAAAAC", "(....)")
     hp_set = structure_set.get_optimal_hairpin_set(
-            5, loop, 10, structure_set.AddType.RIGHT)
+        5, loop, 10, structure_set.AddType.RIGHT
+    )
     assert len(hp_set) > 10
     struct = hp_set.get(0)[0]
     assert len(struct) == 19
@@ -152,9 +158,9 @@ def test_get_sstrands():
     assert len(struct_set) > 10
     struct = struct_set.get(0)[0]
     assert len(struct) == 5
-    assert struct.dot_bracket == '.....'
+    assert struct.dot_bracket == "....."
 
 
 def get_common_seq_structure_set():
-    struct_set = structure_set.get_common_seq_structure_set('ref_hairpin_5prime')
+    struct_set = structure_set.get_common_seq_structure_set("ref_hairpin_5prime")
     assert len(struct_set) == 1

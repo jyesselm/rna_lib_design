@@ -1,5 +1,10 @@
 from rna_lib_design.structure import Sequence, rna_sequence, dna_sequence, DotBracket
-from rna_lib_design.structure import Structure, rna_structure, rna_sequence, common_structures
+from rna_lib_design.structure import (
+    Structure,
+    rna_structure,
+    rna_sequence,
+    common_structures,
+)
 import pytest
 
 
@@ -80,6 +85,7 @@ def test_remove_segments():
 # dot brackests                                                                       #
 #######################################################################################
 
+
 def test_dot_bracket():
     db = DotBracket("((()))")
     assert db.is_paired(0)
@@ -106,6 +112,7 @@ def test_remove_db():
 #######################################################################################
 # structure tests                                                                     #
 #######################################################################################
+
 
 def test_rna():
     rna_struct = rna_structure("GGGGAAAACCCC", "((((....))))")
@@ -168,13 +175,14 @@ def test_remove_bp():
     assert rna_2.sequence == "GGGAAAACCC"
     assert rna_2.dot_bracket == "(((....)))"
 
+
 #######################################################################################
 # function tests                                                                      #
 #######################################################################################
 
+
 def test_common_structures():
     common_structs = common_structures()
-    struct = common_structs['ref_hairpin_5prime']
-    assert struct.sequence == 'GGAAGAUCGAGUAGAUCAAA'
-    assert struct.dot_bracket == '....((((.....))))...'
-
+    struct = common_structs["ref_hairpin_5prime"]
+    assert struct.sequence == "GGAAGAUCGAGUAGAUCAAA"
+    assert struct.dot_bracket == "....((((.....))))..."

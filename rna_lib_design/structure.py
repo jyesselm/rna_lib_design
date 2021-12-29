@@ -35,9 +35,9 @@ class Sequence(object):
 
         if self.__seq_type != other.__seq_type:
             raise ValueError(
-                    "cannot add {} to {} they are not of the same sequence type".format(
-                            self, other
-                    )
+                "cannot add {} to {} they are not of the same sequence type".format(
+                    self, other
+                )
             )
         return Sequence(self.__seq + other.__seq, self.__seq_type)
 
@@ -57,7 +57,7 @@ class Sequence(object):
 
     def remove_segments(self, bounds1, bounds2):
         return self.remove_segment(bounds2[0], bounds2[1]).remove_segment(
-                bounds1[0], bounds1[1]
+            bounds1[0], bounds1[1]
         )
 
     def insert(self, seq, pos) -> Sequence:
@@ -147,7 +147,7 @@ class Sequence(object):
                 comp_list[i] = "A"
             else:
                 raise ValueError(
-                        "invalid sequence character: {} in {}".format(e, self._seq_type)
+                    "invalid sequence character: {} in {}".format(e, self._seq_type)
                 )
         return comp_list
 
@@ -229,14 +229,14 @@ class DotBracket(object):
 
     def remove_segments(self, bounds1, bounds2):
         return self.remove_segment(bounds2[0], bounds2[1]).remove_segment(
-                bounds1[0], bounds1[1]
+            bounds1[0], bounds1[1]
         )
 
     def __assign_pairs(self):
         i = 0
         stack = col.defaultdict(list)
         pairs = {}
-        a = ''
+        a = ""
         for a in self.__dot_bracket:
             if a == "&":
                 continue
@@ -319,9 +319,9 @@ class Structure(object):
     def __init__(self, sequence: Sequence, dot_bracket: DotBracket):
         if len(sequence) != len(dot_bracket):
             raise ValueError(
-                    "sequence and dot bracket must be the same length: {} {}".format(
-                            sequence, dot_bracket
-                    )
+                "sequence and dot bracket must be the same length: {} {}".format(
+                    sequence, dot_bracket
+                )
             )
         self.__sequence = sequence
         self.__dot_bracket = dot_bracket
@@ -334,7 +334,7 @@ class Structure(object):
 
     def __add__(self, other):
         return Structure(
-                self.__sequence + other.__sequence, self.__dot_bracket + other.__dot_bracket
+            self.__sequence + other.__sequence, self.__dot_bracket + other.__dot_bracket
         )
 
     def __eq__(self, other: Structure):
@@ -345,13 +345,13 @@ class Structure(object):
 
     def insert(self, seq, ss, pos):
         return Structure(
-                self.__sequence.insert(seq, pos), self.__dot_bracket.insert(ss, pos)
+            self.__sequence.insert(seq, pos), self.__dot_bracket.insert(ss, pos)
         )
 
     def insert_segments(self, seq1, ss1, seq2, ss2, pos1, pos2):
         return Structure(
-                self.__sequence.insert_segments(seq1, seq2, pos1, pos2),
-                self.__dot_bracket.insert_segments(ss1, ss2, pos1, pos2),
+            self.__sequence.insert_segments(seq1, seq2, pos1, pos2),
+            self.__dot_bracket.insert_segments(ss1, ss2, pos1, pos2),
         )
 
     def insert_bps(self, bp_str, pos):
@@ -361,7 +361,7 @@ class Structure(object):
         seg1, seg2 = spl[0], spl[1][::-1]
         pair_pos = self.get_pair_partner(pos)
         return self.insert_segments(
-                seg1, "(" * len(seg1), seg2, ")" * len(seg2), pos, pair_pos
+            seg1, "(" * len(seg1), seg2, ")" * len(seg2), pos, pair_pos
         )
 
     def __getitem__(self, item):
@@ -369,13 +369,13 @@ class Structure(object):
 
     def remove_segment(self, pos1, pos2):
         return Structure(
-                self.__sequence.remove_segment(pos1, pos2),
-                self.__dot_bracket.remove_segment(pos1, pos2),
+            self.__sequence.remove_segment(pos1, pos2),
+            self.__dot_bracket.remove_segment(pos1, pos2),
         )
 
     def remove_segments(self, bounds1, bounds2):
         return self.remove_segment(bounds2[0], bounds2[1]).remove_segment(
-                bounds1[0], bounds1[1]
+            bounds1[0], bounds1[1]
         )
 
     def remove_bp(self, pos):
@@ -444,6 +444,7 @@ def common_structures():
     for i, row in df.iterrows():
         structures[row["name"]] = rna_structure(row["sequence"], row["structure"])
     return structures
+
 
 def get_common_struct(name):
     common_structs = common_structures()

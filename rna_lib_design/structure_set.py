@@ -18,7 +18,7 @@ class AddType(IntEnum):
 class StructureSet(object):
     def __init__(self, df, add_type):
         self.df = df.sample(frac=1).reset_index(drop=True)
-        self.df['used'] = 0
+        self.df["used"] = 0
         self.add_type = add_type
         self.current = -1
 
@@ -28,11 +28,11 @@ class StructureSet(object):
     def __get_return(self, pos):
         row = self.df.loc[pos]
         if self.add_type != AddType.HELIX:
-            return [structure.Structure(row['seq'], row['ss'])]
+            return [structure.Structure(row["seq"], row["ss"])]
         else:
             return [
-                structure.Structure(row['seq_1'], row['ss_1']),
-                structure.Structure(row['seq_2'], row['ss_2'])
+                structure.Structure(row["seq_1"], row["ss_1"]),
+                structure.Structure(row["seq_2"], row["ss_2"]),
             ]
 
     def get_random(self):
@@ -40,7 +40,7 @@ class StructureSet(object):
             df = self.df.sample()
             row = df.iloc[0]
             i = df.index[0]
-            if row['used'] != 0:
+            if row["used"] != 0:
                 continue
             self.current = i
             return self.__get_return(i)
@@ -53,9 +53,9 @@ class StructureSet(object):
 
     def set_used(self, pos=None):
         if pos is None:
-            self.df.at[self.current, 'used'] = 1
+            self.df.at[self.current, "used"] = 1
         else:
-            self.df.at[pos, 'used'] = 1
+            self.df.at[pos, "used"] = 1
 
     def apply_random(self, struct) -> structure.Structure:
         if self.add_type == AddType.LEFT:
@@ -81,7 +81,7 @@ class HairpinStructureSet(object):
         self.add_type = add_type
         self.loop = loop
         self.helices = StructureSet(df, AddType.HELIX)
-        self.buffer = structure.rna_structure_unpaired('AAA')
+        self.buffer = structure.rna_structure_unpaired("AAA")
 
     def __len__(self):
         return len(self.helices)
@@ -132,14 +132,14 @@ class SingleStructureSet(StructureSet):
 
 
 def get_single_struct_set(struct, add_type):
-    df = pd.DataFrame(columns='seq ss'.split())
+    df = pd.DataFrame(columns="seq ss".split())
     df.loc[0] = [str(struct.sequence), str(struct.dot_bracket)]
     return SingleStructureSet(df, add_type)
 
 
 def apply(struct_sets, struct):
     temp_struct = struct
-    for sd in list(struct_sets[::-1]):
+    for sd in list(struct_sets):
         temp_struct = sd.apply_random(temp_struct)
     return temp_struct
 
@@ -150,11 +150,13 @@ def get_optimal_helix_set(length, min_count=10):
     df = df[df["length"] == length]
     if len(df) == 0:
         raise ValueError(f"no helices available with length {length}")
-    df = df[df['size'] > min_count]
+    df = df[df["size"] > min_count]
     df = df.sort_values(["diff"])
     if len(df) == 0:
-        raise ValueError(f"no helices available with length {length} with max_count {min_count}")
-    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]['path'])
+        raise ValueError(
+            f"no helices available with length {length} with max_count {min_count}"
+        )
+    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
     return StructureSet(df_helix, AddType.HELIX)
 
 
@@ -169,11 +171,13 @@ def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
     df = df[df["length"] == length]
     if len(df) == 0:
         raise ValueError(f"no sstrand available with length {length}")
-    df = df[df['size'] > min_count]
+    df = df[df["size"] > min_count]
     df = df.sort_values(["diff"])
     if len(df) == 0:
-        raise ValueError(f"no sstrand available with length {length} with max_count {min_count}")
-    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]['path'])
+        raise ValueError(
+            f"no sstrand available with length {length} with max_count {min_count}"
+        )
+    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
     return StructureSet(df_ss, type)
 
 
@@ -183,5 +187,4 @@ def get_common_seq_structure_set(name, type=AddType.LEFT):
 
 
 def get_tail_structure_set():
-    return get_common_seq_structure_set('rt_tail', AddType.RIGHT)
-
+    return get_common_seq_structure_set("rt_tail", AddType.RIGHT)

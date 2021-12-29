@@ -54,7 +54,16 @@ def write_barcodes_to_file(fname, barcodes):
         if len(spl2) != 2:
             continue
         f.write(
-                spl[0] + "," + spl[1] + "," + spl2[0] + "," + spl2[1] + "," + str(r.mfe) + "\n"
+            spl[0]
+            + ","
+            + spl[1]
+            + ","
+            + spl2[0]
+            + ","
+            + spl2[1]
+            + ","
+            + str(r.mfe)
+            + "\n"
         )
     f.close()
 
@@ -65,10 +74,10 @@ def cli():
 
 
 @cli.command()
-@click.option('-l', '--length', type=int, required=True)
-@click.option('-md', '--min-dist', type=int, required=True)
-@click.option('-gu', '--gus', default=0, type=int)
-@click.option('-o', '--output', default="helices.csv")
+@click.option("-l", "--length", type=int, required=True)
+@click.option("-md", "--min-dist", type=int, required=True)
+@click.option("-gu", "--gus", default=0, type=int)
+@click.option("-o", "--output", default="helices.csv")
 def hcodes(length, min_dist, gus, output):
     barcodes = generate_helix_barcodes(length, min_dist, gus)
     log.info(f"{len(barcodes)} barcodes found!")
@@ -76,8 +85,8 @@ def hcodes(length, min_dist, gus, output):
 
 
 @cli.command()
-@click.option('-lmin', '--length-min', type=int, required=True)
-@click.option('-lmax', '--length-max', type=int, required=True)
+@click.option("-lmin", "--length-min", type=int, required=True)
+@click.option("-lmax", "--length-max", type=int, required=True)
 def hcodesweep(length_min, length_max):
     os.makedirs("helices", exist_ok=True)
     df = pd.DataFrame(columns="length diff gu size path".split())
@@ -89,14 +98,23 @@ def hcodesweep(length_min, length_max):
                     barcodes = generate_helix_barcodes(pos, md, gu)
                     if len(barcodes) < 10:
                         continue
-                    log.info(f"hlen={pos}\tmin_dist={md}\tgu={gu}\t{len(barcodes)} barcodes found!")
+                    log.info(
+                        f"hlen={pos}\tmin_dist={md}\tgu={gu}\t{len(barcodes)} barcodes found!"
+                    )
                     if not os.path.isdir(f"helices/len_{pos}"):
                         os.mkdir(f"helices/len_{pos}")
-                    write_barcodes_to_file(f"helices/len_{pos}/md_{md}_gu_{gu}_{i}.csv", barcodes)
+                    write_barcodes_to_file(
+                        f"helices/len_{pos}/md_{md}_gu_{gu}_{i}.csv", barcodes
+                    )
                     df.loc[df_pos] = [
-                        pos, md, gu, len(barcodes), f"helices/len_{pos}/md_{md}_gu_{gu}_{i}.csv"]
+                        pos,
+                        md,
+                        gu,
+                        len(barcodes),
+                        f"helices/len_{pos}/md_{md}_gu_{gu}_{i}.csv",
+                    ]
                     df_pos += 1
-    df.to_csv('helices.csv', index=False)
+    df.to_csv("helices.csv", index=False)
 
 
 if __name__ == "__main__":

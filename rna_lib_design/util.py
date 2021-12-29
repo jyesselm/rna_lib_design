@@ -101,7 +101,7 @@ def random_helix(length, gu=0):
     bps = []
     for i in range(0, gu):
         bps.append(random_gu_basepair())
-    for i in range(0, length-gu):
+    for i in range(0, length - gu):
         bps.append(random_basepair())
     random.shuffle(bps)
     for bp in bps:
