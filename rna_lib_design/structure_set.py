@@ -92,7 +92,10 @@ class HairpinStructureSet(object):
     def get(self, pos):
         s1, s2 = self.helices.get(pos)
         if self.buffer is not None:
-            return [s1 + self.loop + s2 + self.buffer]
+            if self.add_type == AddType.LEFT:
+                return [s1 + self.loop + s2 + self.buffer]
+            else:
+                return [self.buffer + s1 + self.loop + s2]
         else:
             return [s1 + self.loop + s2]
 
@@ -102,7 +105,10 @@ class HairpinStructureSet(object):
     def get_random(self):
         s1, s2 = self.helices.get_random()
         if self.buffer is not None:
-            return [s1 + self.loop + s2 + self.buffer]
+            if self.add_type == AddType.LEFT:
+                return [s1 + self.loop + s2 + self.buffer]
+            else:
+                return [self.buffer + s1 + self.loop + s2]
         else:
             return [s1 + self.loop + s2]
 
@@ -156,11 +162,15 @@ def get_optimal_helix_set(length, min_count=10):
         raise ValueError(
             f"no helices available with length {length} with max_count {min_count}"
         )
-    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
+    df_helix = pd.read_csv(
+        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
+    )
     return StructureSet(df_helix, AddType.HELIX)
 
 
-def get_optimal_hairpin_set(length, loop_struct, min_count=10, type=AddType.LEFT):
+def get_optimal_hairpin_set(
+    length, loop_struct, min_count=10, type=AddType.LEFT
+):
     h_df = get_optimal_helix_set(length, min_count).df
     return HairpinStructureSet(loop_struct, h_df, type)
 
@@ -177,7 +187,9 @@ def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
         raise ValueError(
             f"no sstrand available with length {length} with max_count {min_count}"
         )
-    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
+    df_ss = pd.read_csv(
+        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
+    )
     return StructureSet(df_ss, type)
 
 
