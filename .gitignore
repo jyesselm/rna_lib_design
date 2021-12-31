@@ -1,6 +1,7 @@
 *.py[cod]
 .idea
 *.ps
+__pycache__
 
 # C extensions
 *.so
