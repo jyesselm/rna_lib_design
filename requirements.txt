@@ -2,3 +2,6 @@ pandas
 numpy
 xlsxwriter
 click
+tabulate
+pyyaml
+vienna

@@ -334,7 +334,8 @@ class Structure(object):
 
     def __add__(self, other):
         return Structure(
-            self.__sequence + other.__sequence, self.__dot_bracket + other.__dot_bracket
+            self.__sequence + other.__sequence,
+            self.__dot_bracket + other.__dot_bracket,
         )
 
     def __eq__(self, other: Structure):
@@ -414,6 +415,10 @@ def rna_structure(sequence_str, dot_bracket_str) -> Structure:
 
 def rna_structure_unpaired(sequence_str) -> Structure:
     return rna_structure(sequence_str, len(sequence_str) * ".")
+
+
+def rna_structure_break() -> Structure:
+    return rna_structure("&", "&")
 
 
 def dna_structure(sequence_str, dot_bracket_str) -> Structure:

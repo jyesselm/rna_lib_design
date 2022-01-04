@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import pytest
 from rna_lib_design import design, structure, structure_set, settings
 from click.testing import CliRunner
@@ -39,9 +40,7 @@ def get_test_hairpin_left():
     df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
     df = pd.read_csv(df_path)
     loop = structure.rna_structure("GGAAAC", "(....)")
-    struct_set = structure_set.HairpinStructureSet(
-        loop, df, structure_set.AddType.LEFT
-    )
+    struct_set = structure_set.HairpinStructureSet(loop, df, structure_set.AddType.LEFT)
     return struct_set
 
 
@@ -58,9 +57,7 @@ def test_design_2():
     set_1 = get_test_helices()
     set_2 = structure_set.get_common_seq_structure_set("ref_hairpin_5prime")
     set_3 = structure_set.get_tail_structure_set()
-    sol = design.get_best_design(
-        [set_1, set_2, set_3], rna, design.DesignOptions()
-    )
+    sol = design.get_best_design([set_1, set_2, set_3], rna, design.DesignOptions())
     assert (
         sol.design.dot_bracket
         == "....((((.....))))...((((((((((....))))))))))...................."
@@ -73,11 +70,10 @@ def test_helix_barcode():
     df = pd.read_csv(path)
     p5 = structure.get_common_struct("uucg_5prime")
     p3 = structure.get_common_struct("rt_tail")
-    df_new = design.helix_barcode(df, 6, p5, p3, design.DesignOptions())
+    # df_new = design.helix_barcode(df, 6, p5, p3, design.DesignOptions())
 
 
-@pytest.mark.integration
-def test_helix_barcode_cli():
+def test_haiohttpelix_barcode_cli():
     runner = CliRunner()
     args = [
         "barcode",
@@ -89,3 +85,4 @@ def test_helix_barcode_cli():
     ]
     result = runner.invoke(design.cli, args, prog_name="helix_barcode")
     assert result.exit_code == 0
+    assert os.path.exists("out.csv")

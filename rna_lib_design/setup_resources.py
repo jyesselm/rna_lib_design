@@ -1,10 +1,16 @@
 import click
 import os
+import itertools
 
 import pandas as pd
 import vienna
-from rna_lib_design.util import max_gc_stretch, max_stretch, hamming, random_helix
-from rna_lib_design import logger
+from rna_lib_design.util import (
+    max_gc_stretch,
+    max_stretch,
+    hamming,
+    random_helix,
+)
+from rna_lib_design import logger, structure_set, params, structure
 
 log = logger.setup_applevel_logger()
 
@@ -115,6 +121,61 @@ def hcodesweep(length_min, length_max):
                     ]
                     df_pos += 1
     df.to_csv("helices.csv", index=False)
+
+
+def __check_folds(sx_struct, sy_struct, h_set, hp_set, n=100, just_list=False):
+    total = 0
+    for i in range(n):
+        h1, h2 = h_set.get(i)
+        hp = hp_set.get(i)[0]
+        struct = h1 + sx_struct + hp + sy_struct + h2
+        vr = vienna.fold(struct.sequence)
+        if struct.dot_bracket == vr.dot_bracket:
+            total += 1
+    return total
+
+
+@cli.command()
+@click.argument("sx", type=int)
+@click.argument("sy", type=int)
+@click.option("--list", "just_list")
+def twoways(sx, sy, just_list):
+    h_set = structure_set.get_optimal_helix_set(6, 100)
+    loop_struct = structure.get_common_struct("uucg_loop")
+    hp_set = structure_set.get_optimal_hairpin_set(6, loop_struct, 100)
+    hp_set.remove_dots()
+    hp_set.set_buffer(None)
+    bases = "ACGU"
+    basepairs = params.basepairs
+    data = []
+    for bp1 in basepairs:
+        for bp2 in basepairs:
+            print(bp1, bp2)
+            if sx > 0:
+                sx_combos = itertools.product(*[bases for _ in range(sx)])
+            else:
+                sx_combos = [""]
+            for c1 in sx_combos:
+                sx_seq_str = bp1[0] + "".join(c1) + bp2[0]
+                sx_ss_str = "(" + "." * len(c1) + "("
+                sx_struct = structure.rna_structure(sx_seq_str, sx_ss_str)
+                if sy > 0:
+                    sy_combos = itertools.product(*[bases for _ in range(sy)])
+                else:
+                    sy_combos = [""]
+                for c2 in sy_combos:
+                    sy_seq_str = bp2[1] + "".join(c2) + bp1[1]
+                    sy_ss_str = ")" + "." * len(c2) + ")"
+                    sy_struct = structure.rna_structure(sy_seq_str, sy_ss_str)
+                    score = __check_folds(
+                        sx_struct, sy_struct, h_set, hp_set, 10, just_list
+                    )
+                    if score == 0:
+                        continue
+                    data.append([sx_seq_str, sy_seq_str, sx_ss_str, sy_ss_str, score])
+    df = pd.DataFrame(data, columns="seq_1,seq_2,ss_1,ss_2,score".split(","))
+    print(df)
+    df.to_csv("out.csv")
 
 
 if __name__ == "__main__":

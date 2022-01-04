@@ -1,8 +1,9 @@
 import pandas as pd
-import random
 from enum import IntEnum
 
-from rna_lib_design import structure, settings
+from rna_lib_design import structure, settings, logger
+
+log = logger.setup_applevel_logger()
 
 
 class AddType(IntEnum):
@@ -13,6 +14,19 @@ class AddType(IntEnum):
     def to_str(self):
         names = ("HELIX", "LEFT", "RIGHT")
         return names[int(self)]
+
+
+def str_to_add_type(s: str) -> AddType:
+    s = s.upper()
+    if s == "HELIX":
+        return AddType.HELIX
+    elif s == "LEFT":
+        return AddType.LEFT
+    elif s == "RIGHT":
+        return AddType.RIGHT
+    else:
+        log.error(f"invalid AddType: {s}")
+        exit()
 
 
 class StructureSet(object):
@@ -34,6 +48,10 @@ class StructureSet(object):
                 structure.Structure(row["seq_1"], row["ss_1"]),
                 structure.Structure(row["seq_2"], row["ss_2"]),
             ]
+
+    def remove_dots(self):
+        self.df = self.df[~self.df["ss_1"].str.contains("\.")]
+        self.df = self.df.reset_index(drop=True)
 
     def get_random(self):
         while 1:
@@ -64,7 +82,10 @@ class StructureSet(object):
             return struct + self.get_random()[0]
         elif self.add_type == AddType.HELIX:
             s1, s2 = self.get_random()
-            return s1 + struct + s2
+            if len(struct) > 0:
+                return s1 + struct + s2
+            else:
+                return s1 + structure.rna_structure_break() + s2
 
     def apply(self, struct, pos) -> structure.Structure:
         if self.add_type == AddType.LEFT:
@@ -73,7 +94,10 @@ class StructureSet(object):
             return struct + self.get(pos)[0]
         elif self.add_type == AddType.HELIX:
             s1, s2 = self.get(pos)
-            return s1 + struct + s2
+            if len(struct) > 0:
+                return s1 + struct + s2
+            else:
+                return s1 + structure.rna_structure_break() + s2
 
 
 class HairpinStructureSet(object):
@@ -88,6 +112,9 @@ class HairpinStructureSet(object):
 
     def set_buffer(self, struct):
         self.buffer = struct
+
+    def remove_dots(self):
+        self.helices.remove_dots()
 
     def get(self, pos):
         s1, s2 = self.helices.get(pos)
@@ -157,20 +184,16 @@ def get_optimal_helix_set(length, min_count=10):
     if len(df) == 0:
         raise ValueError(f"no helices available with length {length}")
     df = df[df["size"] > min_count]
-    df = df.sort_values(["diff"])
+    df = df.sort_values(["diff"], ascending=False)
     if len(df) == 0:
         raise ValueError(
             f"no helices available with length {length} with max_count {min_count}"
         )
-    df_helix = pd.read_csv(
-        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
-    )
+    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
     return StructureSet(df_helix, AddType.HELIX)
 
 
-def get_optimal_hairpin_set(
-    length, loop_struct, min_count=10, type=AddType.LEFT
-):
+def get_optimal_hairpin_set(length, loop_struct, min_count=10, type=AddType.LEFT):
     h_df = get_optimal_helix_set(length, min_count).df
     return HairpinStructureSet(loop_struct, h_df, type)
 
@@ -182,14 +205,12 @@ def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
     if len(df) == 0:
         raise ValueError(f"no sstrand available with length {length}")
     df = df[df["size"] > min_count]
-    df = df.sort_values(["diff"])
+    df = df.sort_values(["diff"], ascending=False)
     if len(df) == 0:
         raise ValueError(
             f"no sstrand available with length {length} with max_count {min_count}"
         )
-    df_ss = pd.read_csv(
-        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
-    )
+    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
     return StructureSet(df_ss, type)
 
 

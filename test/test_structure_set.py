@@ -133,6 +133,13 @@ def test_apply_2():
     assert len(new_struct) == 34
 
 
+def test_apply_blank():
+    rna_struct = structure.rna_structure("", "")
+    struct_set = get_test_helices()
+    new_struct = structure_set.apply([struct_set], rna_struct)
+    print(new_struct)
+
+
 def test_get_helices():
     struct_set = structure_set.get_optimal_helix_set(5, 10)
     assert len(struct_set) > 10

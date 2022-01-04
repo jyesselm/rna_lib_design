@@ -43,7 +43,7 @@ def random_gu_basepair():
 
 
 def hamming(a, b):
-    """ hamming distance between two strings """
+    """hamming distance between two strings"""
     dist = 0
     for i, j in zip(a, b):
         if i != j:
@@ -52,7 +52,7 @@ def hamming(a, b):
 
 
 def max_stretch(s):
-    """ returns max stretch of the same letter in string """
+    """returns max stretch of the same letter in string"""
     max_stretch = 0
     last = None
     for n in s:

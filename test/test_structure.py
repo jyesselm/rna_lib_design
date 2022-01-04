@@ -1,4 +1,9 @@
-from rna_lib_design.structure import Sequence, rna_sequence, dna_sequence, DotBracket
+from rna_lib_design.structure import (
+    Sequence,
+    rna_sequence,
+    dna_sequence,
+    DotBracket,
+)
 from rna_lib_design.structure import (
     Structure,
     rna_structure,
@@ -174,6 +179,14 @@ def test_remove_bp():
     rna_2 = rna_1.remove_bp(1)
     assert rna_2.sequence == "GGGAAAACCC"
     assert rna_2.dot_bracket == "(((....)))"
+
+
+def test_blank_structure():
+    rna_1 = rna_structure("", "")
+    assert len(rna_1) == 0
+    rna_2 = rna_structure("GGGGAAAACCCC", "((((....))))")
+    assert len(rna_2) == 12
+    assert len(rna_1 + rna_2) == 12
 
 
 #######################################################################################
