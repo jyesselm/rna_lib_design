@@ -31,6 +31,9 @@ setup(
     include_package_data=True,
     install_requires=requirements,
     entry_points={
-        "console_scripts": ["rld_setup = rna_lib_design.setup_resources:cli",]
+        "console_scripts": [
+            "rld_setup = rna_lib_design.setup_resources:cli",
+            "rld_design = rna_lib_design.design:cli",
+        ]
     },
 )

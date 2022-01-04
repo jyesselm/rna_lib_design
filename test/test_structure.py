@@ -5,7 +5,6 @@ from rna_lib_design.structure import (
     DotBracket,
 )
 from rna_lib_design.structure import (
-    Structure,
     rna_structure,
     rna_sequence,
     common_structures,

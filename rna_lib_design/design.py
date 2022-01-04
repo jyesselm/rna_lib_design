@@ -96,7 +96,9 @@ def __print_design_solution(name: str, sol: DesignResults) -> None:
         "ens_defect": sol.ens_defect,
     }
     df = pd.DataFrame(list(data.items()), columns="name value".split())
-    log.debug("\n" + tabulate(df, headers="keys", tablefmt="psql", showindex=False))
+    log.debug(
+        "\n" + tabulate(df, headers="keys", tablefmt="psql", showindex=False)
+    )
 
 
 def __generate_designs_for_dataframe(
@@ -164,7 +166,9 @@ def __parse_cli_p5_and_p3(
         )
         p3 = structure.rna_structure(p3_common, r.dot_bracket)
     p5_set = structure_set.get_single_struct_set(p5, structure_set.AddType.LEFT)
-    p3_set = structure_set.get_single_struct_set(p3, structure_set.AddType.RIGHT)
+    p3_set = structure_set.get_single_struct_set(
+        p3, structure_set.AddType.RIGHT
+    )
     return [p5_set, p3_set]
 
 
@@ -232,20 +236,24 @@ def __setup_logging(type, log_level):
 
 def common_options(function):
     function = click.argument("csv", type=click.Path(exists=True))(function)
-    function = click.option("-t", "--type", default="helix", help="type")(function)
+    function = click.option("-t", "--type", default="helix", help="type")(
+        function
+    )
     function = click.option("-p5", "--p5-common", help="p5 sequence")(function)
     function = click.option("-p3", "--p3-common", help="p3 sequence")(function)
     function = click.option("-o", "--output", default="out.csv")(function)
     function = click.option("-ll", "--log-level", default="info")(function)
     function = click.option("--trim_5p", default=0, type=int)(function)
     function = click.option("--trim_3p", default=0, type=int)(function)
-    function = click.option("-med", "--max_ens_defect", default=2, type=int)(function)
-    function = click.option("-mda", "--max_design_attempts", default=100, type=int)(
+    function = click.option("-med", "--max_ens_defect", default=2, type=int)(
         function
     )
-    function = click.option("-mds", "--max_design_solutions", default=10, type=int)(
-        function
-    )
+    function = click.option(
+        "-mda", "--max_design_attempts", default=100, type=int
+    )(function)
+    function = click.option(
+        "-mds", "--max_design_solutions", default=10, type=int
+    )(function)
     function = click.option("--loop")(function)
     return function
 
@@ -257,10 +265,8 @@ def cli():
 
 @cli.command()
 @click.option("-l", "--length", default=6, type=int, help="length")
-@click.option(
-    "--add_3p", "add_type", flag_value=structure_set.AddType.RIGHT, default=True
-)
-@click.option("--add_5p", "add_type", flag_value=structure_set.AddType.LEFT)
+@click.option("--add_3p", "add_type", flag_value=1, default=True, type=int)
+@click.option("--add_5p", "add_type", flag_value=0, default=True, type=int)
 @common_options
 def barcode(type, length, csv, p5_common, p3_common, output, **kwargs):
     __setup_logging(type, kwargs["log_level"].lower())
@@ -270,6 +276,9 @@ def barcode(type, length, csv, p5_common, p3_common, output, **kwargs):
         kwargs["max_design_attempts"],
         kwargs["max_design_solutions"],
     )
+    add_type = structure_set.AddType.RIGHT
+    if kwargs["add_type"] == 0:
+        add_type = structure_set.AddType.LEFT
     if type.lower() == "helix":
         v_set = structure_set.get_optimal_helix_set(length, len(df) * 1.1)
     elif type.lower() == "sstrand":
@@ -278,8 +287,9 @@ def barcode(type, length, csv, p5_common, p3_common, output, **kwargs):
         )
     elif type.lower() == "hairpin":
         loop_struct = __parse_cli_loop(kwargs["loop"])
+
         v_set = structure_set.get_optimal_hairpin_set(
-            length, loop_struct, len(df) * 1.1, kwargs["add_type"]
+            length, loop_struct, len(df) * 1.1, add_type
         )
     else:
         log.error(f"{type} is not a valid type")
@@ -295,7 +305,9 @@ def barcode(type, length, csv, p5_common, p3_common, output, **kwargs):
 
 
 @cli.command()
-@click.option("-l", "--lengths", default=(6, 6), type=(int, int), help="lengths")
+@click.option(
+    "-l", "--lengths", default=(6, 6), type=(int, int), help="lengths"
+)
 @common_options
 def barcode2(type, lengths, csv, p5_common, p3_common, output, **kwargs):
     __setup_logging(type, kwargs["log_level"].lower())
@@ -403,7 +415,10 @@ def __get_set_from_sequence(name: str, n: Dict):
 
 
 def __get_set_from_library(name: str, n: Dict, num: int):
-    log.info(f"node: {name} is intepreted as library node of type: " f"{n['library']}")
+    log.info(
+        f"node: {name} is intepreted as library node of type: "
+        f"{n['library']}"
+    )
     if "add" in n:
         add_type = structure_set.str_to_add_type(n["add"])
     else:
@@ -459,7 +474,9 @@ def assemble(yml, num):
             sets.append(__get_set_from_library(name, n, num))
         elif "named_struct" in n:
             sets.append(
-                structure_set.get_common_seq_structure_set(n["named_struct"], add_type)
+                structure_set.get_common_seq_structure_set(
+                    n["named_struct"], add_type
+                )
             )
         elif "5_and_3p" in n:
             p5_name, p3_name = n["5_and_3p"]

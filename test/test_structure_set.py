@@ -1,50 +1,9 @@
 import pandas as pd
-from rna_lib_design import structure_set, settings, structure
-
-
-def get_test_helices():
-    df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
-    df = pd.read_csv(df_path)
-    struct_set = structure_set.StructureSet(df, structure_set.AddType.HELIX)
-    return struct_set
-
-
-def get_test_sstrand_right():
-    df_path = settings.TEST_PATH + "/resources/sstrand_barcodes.csv"
-    df = pd.read_csv(df_path)
-    struct_set = structure_set.StructureSet(df, structure_set.AddType.RIGHT)
-    return struct_set
-
-
-def get_test_sstrand_left():
-    df_path = settings.TEST_PATH + "/resources/sstrand_barcodes.csv"
-    df = pd.read_csv(df_path)
-    struct_set = structure_set.StructureSet(df, structure_set.AddType.LEFT)
-    return struct_set
-
-
-def get_test_hairpin_right():
-    df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
-    df = pd.read_csv(df_path)
-    loop = structure.rna_structure("GGAAAC", "(....)")
-    struct_set = structure_set.HairpinStructureSet(
-        loop, df, structure_set.AddType.RIGHT
-    )
-    return struct_set
-
-
-def get_test_hairpin_left():
-    df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
-    df = pd.read_csv(df_path)
-    loop = structure.rna_structure("GGAAAC", "(....)")
-    struct_set = structure_set.HairpinStructureSet(loop, df, structure_set.AddType.LEFT)
-    return struct_set
+from rna_lib_design import structure_set, settings, structure, testing
 
 
 def test_sstrand_structure_set():
-    df_path = settings.TEST_PATH + "/resources/sstrand_barcodes.csv"
-    df = pd.read_csv(df_path)
-    struct_set = structure_set.StructureSet(df, structure_set.AddType.RIGHT)
+    struct_set = testing.get_test_hairpin()
     struct_1 = struct_set.get_random()[0]
     struct_set.set_used()
     struct_2 = struct_set.get_random()[0]
@@ -59,9 +18,7 @@ def test_sstrand_structure_set():
 
 
 def test_helix_structure_set():
-    df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
-    df = pd.read_csv(df_path)
-    struct_set = structure_set.StructureSet(df, structure_set.AddType.HELIX)
+    struct_set = testing.get_test_helices()
     structs = struct_set.get_random()
     struct_1 = structs[0] + structs[1]
     struct_set.set_used()
@@ -77,12 +34,7 @@ def test_helix_structure_set():
 
 
 def test_hairpin_structure_set():
-    df_path = settings.TEST_PATH + "/resources/helix_barcodes.csv"
-    df = pd.read_csv(df_path)
-    loop = structure.rna_structure("GGAAAC", "(....)")
-    struct_set = structure_set.HairpinStructureSet(
-        loop, df, structure_set.AddType.RIGHT
-    )
+    struct_set = testing.get_test_hairpin()
     struct_1 = struct_set.get_random()[0]
     struct_set.set_used()
     struct_2 = struct_set.get_random()[0]
@@ -96,7 +48,7 @@ def test_hairpin_structure_set():
 
 
 def test_hairpin_structure_set_no_buffer():
-    hp_set = get_test_hairpin_right()
+    hp_set = testing.get_test_hairpin()
     hp_set.set_buffer(None)
     rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
     rna_struct_new = hp_set.apply(rna_struct, 0)
@@ -121,23 +73,22 @@ def test_single_structure_set():
 
 def test_apply():
     rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    struct_set = get_test_helices()
+    struct_set = testing.get_test_helices()
     new_struct = structure_set.apply([struct_set], rna_struct)
     assert rna_struct != new_struct
 
 
 def test_apply_2():
     rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    sets = [get_test_helices(), get_test_helices()]
+    sets = [testing.get_test_helices(), testing.get_test_helices()]
     new_struct = structure_set.apply(sets, rna_struct)
     assert len(new_struct) == 34
 
 
 def test_apply_blank():
     rna_struct = structure.rna_structure("", "")
-    struct_set = get_test_helices()
+    struct_set = testing.get_test_helices()
     new_struct = structure_set.apply([struct_set], rna_struct)
-    print(new_struct)
 
 
 def test_get_helices():
@@ -169,5 +120,7 @@ def test_get_sstrands():
 
 
 def get_common_seq_structure_set():
-    struct_set = structure_set.get_common_seq_structure_set("ref_hairpin_5prime")
+    struct_set = structure_set.get_common_seq_structure_set(
+        "ref_hairpin_5prime"
+    )
     assert len(struct_set) == 1

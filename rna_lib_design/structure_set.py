@@ -102,6 +102,8 @@ class StructureSet(object):
 
 class HairpinStructureSet(object):
     def __init__(self, loop, df, add_type):
+        if not (add_type == AddType.LEFT or add_type == AddType.RIGHT):
+            raise ValueError(f"incorrect type {add_type}")
         self.add_type = add_type
         self.loop = loop
         self.helices = StructureSet(df, AddType.HELIX)
@@ -189,11 +191,15 @@ def get_optimal_helix_set(length, min_count=10):
         raise ValueError(
             f"no helices available with length {length} with max_count {min_count}"
         )
-    df_helix = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
+    df_helix = pd.read_csv(
+        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
+    )
     return StructureSet(df_helix, AddType.HELIX)
 
 
-def get_optimal_hairpin_set(length, loop_struct, min_count=10, type=AddType.LEFT):
+def get_optimal_hairpin_set(
+    length, loop_struct, min_count=10, type=AddType.LEFT
+):
     h_df = get_optimal_helix_set(length, min_count).df
     return HairpinStructureSet(loop_struct, h_df, type)
 
@@ -210,7 +216,9 @@ def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
         raise ValueError(
             f"no sstrand available with length {length} with max_count {min_count}"
         )
-    df_ss = pd.read_csv(settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"])
+    df_ss = pd.read_csv(
+        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
+    )
     return StructureSet(df_ss, type)
 
 

@@ -1,0 +1,11 @@
+
+node_1:
+  sequence :  CUUCGG
+  structure : (....)
+
+node_2:
+  library : helix
+  length : 6
+
+node_3:
+  5_and_3p : [ref_hairpin_5prime, rt_tail]
