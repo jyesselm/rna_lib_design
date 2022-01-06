@@ -4,4 +4,6 @@ xlsxwriter
 click
 tabulate
 pyyaml
+# written by our group
 vienna
+rna_seq_tools

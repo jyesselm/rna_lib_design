@@ -100,7 +100,9 @@ class Sequence(object):
         return Sequence(self.__get_complement(self.__seq), "RNA")
 
     def get_reverse_complement(self) -> Sequence:
-        return Sequence(self.__get_complement(self.__seq)[::-1], self.__seq_type)
+        return Sequence(
+            self.__get_complement(self.__seq)[::-1], self.__seq_type
+        )
 
     def get_dna_reverse_complement(self) -> Sequence:
         return Sequence(self.__get_complement(self.__seq)[::-1], "DNA")
@@ -147,7 +149,9 @@ class Sequence(object):
                 comp_list[i] = "A"
             else:
                 raise ValueError(
-                    "invalid sequence character: {} in {}".format(e, self._seq_type)
+                    "invalid sequence character: {} in {}".format(
+                        e, self._seq_type
+                    )
                 )
         return comp_list
 
@@ -284,7 +288,9 @@ class DotBracket(object):
 
     def get_helical_segments(self):
         if not self.__is_valid:
-            raise ValueError("cannot assign motifs with in a invalid dotbracket")
+            raise ValueError(
+                "cannot assign motifs with in a invalid dotbracket"
+            )
 
         current = [[], []]
         for i in range(0, len(self)):
@@ -332,6 +338,9 @@ class Structure(object):
     def __str__(self):
         return str(self.__sequence) + " " + str(self.__dot_bracket)
 
+    def __repr__(self):
+        return str(self.__sequence) + " " + str(self.__dot_bracket)
+
     def __add__(self, other):
         return Structure(
             self.__sequence + other.__sequence,
@@ -339,7 +348,10 @@ class Structure(object):
         )
 
     def __eq__(self, other: Structure):
-        return self.sequence == other.sequence and self.dot_bracket == other.dot_bracket
+        return (
+            self.sequence == other.sequence
+            and self.dot_bracket == other.dot_bracket
+        )
 
     def __ne__(self, other: Structure):
         return not self == other
@@ -384,9 +396,13 @@ class Structure(object):
             raise ValueError("cannot delete a bp at an existing bp")
         pair_pos = self.get_pair_partner(pos)
         if pos < pair_pos:
-            return self.remove_segments([pos, pos + 1], [pair_pos, pair_pos + 1])
+            return self.remove_segments(
+                [pos, pos + 1], [pair_pos, pair_pos + 1]
+            )
         else:
-            return self.remove_segments([pair_pos, pair_pos + 1], [pos, pos + 1])
+            return self.remove_segments(
+                [pair_pos, pair_pos + 1], [pos, pos + 1]
+            )
 
     def is_paired(self, pos):
         return self.__dot_bracket.is_paired(pos)
@@ -447,7 +463,9 @@ def common_structures():
     structures = {}
     df = common_structure_dataframe()
     for i, row in df.iterrows():
-        structures[row["name"]] = rna_structure(row["sequence"], row["structure"])
+        structures[row["name"]] = rna_structure(
+            row["sequence"], row["structure"]
+        )
     return structures
 
 

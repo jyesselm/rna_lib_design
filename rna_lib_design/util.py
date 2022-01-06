@@ -55,18 +55,21 @@ def max_stretch(s):
     """returns max stretch of the same letter in string"""
     max_stretch = 0
     last = None
+    stretch = 1
     for n in s:
         if last == None:
             last = n
-            stretch = 0
+            stretch = 1
             continue
         if n == last:
             stretch += 1
             if stretch > max_stretch:
                 max_stretch = stretch
         else:
-            stretch = 0
+            stretch = 1
         last = n
+    if stretch > max_stretch:
+        max_stretch = stretch
     return max_stretch
 
 

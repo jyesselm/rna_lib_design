@@ -172,7 +172,9 @@ def twoways(sx, sy, just_list):
                     )
                     if score == 0:
                         continue
-                    data.append([sx_seq_str, sy_seq_str, sx_ss_str, sy_ss_str, score])
+                    data.append(
+                        [sx_seq_str, sy_seq_str, sx_ss_str, sy_ss_str, score]
+                    )
     df = pd.DataFrame(data, columns="seq_1,seq_2,ss_1,ss_2,score".split(","))
     print(df)
     df.to_csv("out.csv")

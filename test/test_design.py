@@ -28,35 +28,3 @@ def test_design_2():
         == "....((((.....))))...((((((((((....))))))))))...................."
     )
     assert sol.ens_defect < 1.0
-
-
-def test_helix_barcode_cli():
-    runner = CliRunner()
-    args = [
-        "barcode",
-        TEST_RESOURCES + "opool_final_2.csv",
-    ]
-    result = runner.invoke(design.cli, args, prog_name="helix_barcode")
-    assert result.exit_code == 0
-    assert os.path.exists("out.csv")
-    df = pd.read_csv("out.csv")
-    assert "org_sequence" in df
-    os.remove("out.csv")
-
-
-def test_hairpin_barcode_cli():
-    runner = CliRunner()
-    args = [
-        "barcode",
-        "--type",
-        "hairpin",
-        TEST_RESOURCES + "opool_final_2.csv",
-    ]
-    result = runner.invoke(design.cli, args, prog_name="helix_barcode")
-    assert result.exit_code == 0
-    assert os.path.exists("out.csv")
-    df = pd.read_csv("out.csv")
-    assert "org_sequence" in df
-    ss = df.loc[0]["structure"]
-    assert ss.find("(((((((....)))))))") != -1
-    os.remove("out.csv")

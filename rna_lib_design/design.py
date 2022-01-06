@@ -5,11 +5,10 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Dict
-from tabulate import tabulate
-import textwrap
 import yaml
 
 import vienna
+import seq_tools.data_frame as stdf
 from rna_lib_design import structure_set, logger, structure
 
 log = logger.setup_applevel_logger()
@@ -71,37 +70,7 @@ def get_best_design(
     return DesignResults(best_score, best)
 
 
-def write_results_to_csv(constructs, fname="final"):
-    f_rna = open(fname + "_rna.csv", "w")
-    f_rna.write("name,sequence,structure,ens_defect\n")
-    f_dna = open(fname + "_dna.csv", "w")
-    f_dna.write("name,sequence\n")
-    for c in constructs:
-        f_rna.write(f"{c[0]},{c[1].sequence},{c[1].dot_bracket},{c[2]}\n")
-        f_dna.write(f"{c[0]},TTCTAATACGACTCACTATA{c[1].sequence.to_dna()}\n")
-    f_rna.close()
-    f_dna.close()
-
-
-################################################################################
-# helper functions                                                             #
-################################################################################
-
-
-def __print_design_solution(name: str, sol: DesignResults) -> None:
-    data = {
-        "construct": name,
-        "sequence": textwrap.fill(str(sol.design.sequence), 80),
-        "structure": textwrap.fill(str(sol.design.dot_bracket), 80),
-        "ens_defect": sol.ens_defect,
-    }
-    df = pd.DataFrame(list(data.items()), columns="name value".split())
-    log.debug(
-        "\n" + tabulate(df, headers="keys", tablefmt="psql", showindex=False)
-    )
-
-
-def __generate_designs_for_dataframe(
+def get_best_designs_in_dataframe(
     df: pd.DataFrame,
     sets: List[structure_set.StructureSet],
     opts: DesignOptions,
@@ -129,7 +98,7 @@ def __generate_designs_for_dataframe(
                 np.nan,
             ]
         else:
-            __print_design_solution(row["name"], sol)
+            log.debug(f"solution found: name={row['name']}, sol={sol},")
             df.at[i, ["sequence", "structure", "ens_defect"]] = [
                 str(sol.design.sequence),
                 str(sol.design.dot_bracket),
@@ -138,124 +107,29 @@ def __generate_designs_for_dataframe(
     return df
 
 
-def __parse_cli_p5_and_p3(
-    p5_common: str, p3_common: str
-) -> List[structure_set.StructureSet]:
-    common_structs = structure.common_structures()
-    if p5_common is None:
-        p5 = common_structs["ref_hairpin_5prime"]
-        log.info(f"no p5 sequence supplied using: {p5.sequence}")
-    else:
-        r = vienna.fold(p5_common)
-        log.info(f"p5 sequence supplied: {p5_common}")
-        log.info(
-            f"p5 sequence has a folded structure of {r.dot_bracket} with "
-            f"ens_defect of {r.ensemble_diversity}"
-        )
-        p5 = structure.rna_structure(p5_common, r.dot_bracket)
+def write_results_to_file(
+    df: pd.DataFrame, fname="results", opool_name="opool"
+) -> None:
+    df.to_csv(f"{fname}-all.csv", index=False)
+    df_sub = df[["name", "sequence", "structure", "ens_defect"]]
+    df_sub.to_csv(f"{fname}-rna.csv", index=False)
 
-    if p3_common is None:
-        p3 = common_structs["rt_tail"]
-        log.info(f"no p3 sequence supplied using: {p3.sequence}")
-    else:
-        r = vienna.fold(p3_common)
-        log.info(f"p5 sequence supplied: {p3_common}")
-        log.info(
-            f"p5 sequence has a folded structure of {r.dot_bracket} with "
-            f"ens_defect of {r.ensemble_diversity}"
-        )
-        p3 = structure.rna_structure(p3_common, r.dot_bracket)
-    p5_set = structure_set.get_single_struct_set(p5, structure_set.AddType.LEFT)
-    p3_set = structure_set.get_single_struct_set(
-        p3, structure_set.AddType.RIGHT
+    df_sub = df[["name", "sequence"]].copy()
+    df_sub["sequence"] = [
+        "TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]
+    ]
+    stdf.convert_to_dna(df_sub)
+    df_sub.to_csv(f"{fname}-dna.csv", index=False)
+    df_sub = df_sub.rename(
+        columns={"name": "Pool name", "sequence": "Sequence"}
     )
-    return [p5_set, p3_set]
-
-
-def __parse_cli_loop(loop: str) -> structure.Structure:
-    if loop is None:
-        loop_struct = structure.get_common_struct("uucg_loop")
-    else:
-        r = vienna.fold(loop)
-        log.info(f"loop sequence supplied: {loop}")
-        log.info(
-            f"loop sequence has a folded structure of {r.dot_bracket} with "
-            f"ens_defect of {r.ensemble_diversity}"
-        )
-        loop_struct = structure.rna_structure(loop, r.dot_bracket)
-    return loop_struct
-
-
-def __add_folded_structure(df):
-    structures = []
-    ens_defects = []
-    for i, row in df.iterrows():
-        vr = vienna.fold(row["sequence"])
-        structures.append(vr.dot_bracket)
-        ens_defects.append(vr.ensemble_diversity)
-    df["structure"] = structures
-    df["ens_defect"] = ens_defects
-
-
-def __trim_sequence(df, trim_5p, trim_3p):
-    if trim_5p == 0 and trim_3p == 0:
-        return
-    for i, row in df.iterrows():
-        sequence = row["sequence"]
-        structure = row["structure"]
-        if trim_5p > 0:
-            sequence = sequence[trim_5p:]
-            structure = structure[trim_5p:]
-        if trim_3p > 0:
-            sequence = sequence[:-trim_3p]
-            structure = structure[:-trim_3p]
-        df.at[i, ["sequence", "structure"]] = [sequence, structure]
-
-
-def __df_setup(csv, opts) -> pd.DataFrame:
-    df_input = pd.read_csv(csv)
-    if "sequence" not in df_input:
-        log.error(f"csv must contain a `sequence` column")
-        exit()
-    if "structure" not in df_input:
-        __add_folded_structure(df_input)
-    __trim_sequence(df_input, opts["trim_5p"], opts["trim_3p"])
-    return df_input
-
-
-def __setup_logging(type, log_level):
-    log.info(f"barcode type is {type}")
-    if log_level == "debug":
-        log.setLevel(logging.DEBUG)
+    df_sub["Pool name"] = opool_name
+    df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
 
 
 ################################################################################
 # cli functions                                                                #
 ################################################################################
-
-
-def common_options(function):
-    function = click.argument("csv", type=click.Path(exists=True))(function)
-    function = click.option("-t", "--type", default="helix", help="type")(
-        function
-    )
-    function = click.option("-p5", "--p5-common", help="p5 sequence")(function)
-    function = click.option("-p3", "--p3-common", help="p3 sequence")(function)
-    function = click.option("-o", "--output", default="out.csv")(function)
-    function = click.option("-ll", "--log-level", default="info")(function)
-    function = click.option("--trim_5p", default=0, type=int)(function)
-    function = click.option("--trim_3p", default=0, type=int)(function)
-    function = click.option("-med", "--max_ens_defect", default=2, type=int)(
-        function
-    )
-    function = click.option(
-        "-mda", "--max_design_attempts", default=100, type=int
-    )(function)
-    function = click.option(
-        "-mds", "--max_design_solutions", default=10, type=int
-    )(function)
-    function = click.option("--loop")(function)
-    return function
 
 
 @click.group()
@@ -264,51 +138,9 @@ def cli():
 
 
 @cli.command()
-@click.option("-l", "--length", default=6, type=int, help="length")
-@click.option("--add_3p", "add_type", flag_value=1, default=True, type=int)
-@click.option("--add_5p", "add_type", flag_value=0, default=True, type=int)
-@common_options
-def barcode(type, length, csv, p5_common, p3_common, output, **kwargs):
-    __setup_logging(type, kwargs["log_level"].lower())
-    df = __df_setup(csv, kwargs)
-    opts = DesignOptions(
-        kwargs["max_ens_defect"],
-        kwargs["max_design_attempts"],
-        kwargs["max_design_solutions"],
-    )
-    add_type = structure_set.AddType.RIGHT
-    if kwargs["add_type"] == 0:
-        add_type = structure_set.AddType.LEFT
-    if type.lower() == "helix":
-        v_set = structure_set.get_optimal_helix_set(length, len(df) * 1.1)
-    elif type.lower() == "sstrand":
-        v_set = structure_set.get_optimal_sstrand_set(
-            length, len(df) * 1.1, kwargs["add_type"]
-        )
-    elif type.lower() == "hairpin":
-        loop_struct = __parse_cli_loop(kwargs["loop"])
-
-        v_set = structure_set.get_optimal_hairpin_set(
-            length, loop_struct, len(df) * 1.1, add_type
-        )
-    else:
-        log.error(f"{type} is not a valid type")
-        exit()
-    p5_set, p3_set = __parse_cli_p5_and_p3(p5_common, p3_common)
-    sets = [v_set, p5_set, p3_set]
-    df_result = __generate_designs_for_dataframe(df, sets, opts)
-    org_total = len(df_result)
-    df_result = df_result.dropna()
-    diff = org_total - len(df_result)
-    log.info(f"{diff} constructs were discarded as they were below cutoffs")
-    df_result.to_csv(output, index=False)
-
-
-@cli.command()
 @click.option(
     "-l", "--lengths", default=(6, 6), type=(int, int), help="lengths"
 )
-@common_options
 def barcode2(type, lengths, csv, p5_common, p3_common, output, **kwargs):
     __setup_logging(type, kwargs["log_level"].lower())
     df = __df_setup(csv, kwargs)
@@ -357,7 +189,6 @@ def barcode2(type, lengths, csv, p5_common, p3_common, output, **kwargs):
 @click.option(
     "-l", "--lengths", default=(6, 6, 6), type=(int, int, int), help="lengths"
 )
-@common_options
 def barcode3(type, lengths, csv, p5_common, p3_common, output, **kwargs):
     __setup_logging(type, kwargs["log_level"].lower())
     df = __df_setup(csv, kwargs)
@@ -498,7 +329,3 @@ def assemble(yml, num):
     opts = DesignOptions()
     sol = get_best_design(sets, start_struct, opts)
     print(sol.design)
-
-
-if __name__ == "__main__":
-    cli()
