@@ -1,8 +1,10 @@
 import click
 import pandas as pd
+import numpy as np
 import logging
-from typing import Dict
+from typing import Dict, Tuple
 from pathlib import Path
+import editdistance
 
 import seq_tools.data_frame as stdf
 from rna_lib_design.design import (
@@ -26,20 +28,84 @@ def single_barcode(
     loop: str = None,
 ) -> pd.DataFrame:
     if btype == "helix":
-        v_set = structure_set.get_optimal_helix_set(length, len(df) * 1.1)
+        v_set = structure_set.get_optimal_helix_set(length, len(df) * 1.2)
     elif btype == "sstrand":
         v_set = structure_set.get_optimal_sstrand_set(
-            length, len(df) * 1.1, add_type
+            length, len(df) * 1.2, add_type
         )
     elif btype == "hairpin":
         loop_struct = defaults.get_loop_from_str(loop)
         v_set = structure_set.get_optimal_hairpin_set(
-            length, loop_struct, len(df) * 1.1, add_type
+            length, loop_struct, len(df) * 1.2, add_type
         )
     else:
-        log.error(f"{type} is not a valid type")
+        log.error(f"{btype} is not a valid type")
         exit()
     sets = [v_set, p5, p3]
+    df_result = get_best_designs_in_dataframe(df, sets, design_opts)
+    return df_result
+
+
+def double_barcode(
+    df: pd.DataFrame,
+    btype: str,
+    lengths: Tuple[int, int],
+    p5: structure_set.StructureSet,
+    p3: structure_set.StructureSet,
+    design_opts: DesignOptions,
+    loop: str = None,
+):
+    sets = []
+    loop_struct = defaults.get_loop_from_str(loop)
+    if btype == "helix_hairpin":
+        h_set = structure_set.get_optimal_helix_set(lengths[0], len(df) * 1.2)
+        hp_set = structure_set.get_optimal_hairpin_set(
+            lengths[1], loop_struct, len(df) * 1.2, structure_set.AddType.RIGHT
+        )
+        sets.extend([h_set, hp_set])
+    elif type == "hairpin_helix":
+        h_set = structure_set.get_optimal_helix_set(lengths[1], len(df) * 1.2)
+        hp_set = structure_set.get_optimal_hairpin_set(
+            lengths[0], loop_struct, len(df) * 1.2, structure_set.AddType.LEFT
+        )
+        sets.extend([h_set, hp_set])
+    elif type == "hairpin_hairpin":
+        hp_set_1 = structure_set.get_optimal_hairpin_set(
+            lengths[0], loop_struct, len(df) * 1.2, structure_set.AddType.LEFT
+        )
+        hp_set_2 = structure_set.get_optimal_hairpin_set(
+            lengths[1], loop_struct, len(df) * 1.2, structure_set.AddType.RIGHT
+        )
+        sets.extend([hp_set_1, hp_set_2])
+    else:
+        log.error(f"unknown type {btype}")
+        exit()
+    sets.extend([p5, p3])
+    df_result = get_best_designs_in_dataframe(df, sets, design_opts)
+    return df_result
+
+
+def triple_barcode(
+    df: pd.DataFrame,
+    btype: str,
+    lengths: Tuple[int, int, int],
+    p5: structure_set.StructureSet,
+    p3: structure_set.StructureSet,
+    design_opts: DesignOptions,
+    loop: str = None,
+):
+    sets = []
+    loop_struct = defaults.get_loop_from_str(loop)
+    if btype == "hairpin_helix_hairpin":
+        hp_set_1 = structure_set.get_optimal_hairpin_set(
+            lengths[0], loop_struct, len(df) * 1.2, structure_set.AddType.LEFT
+        )
+        h_set = structure_set.get_optimal_helix_set(lengths[1], len(df) * 1.2)
+        hp_set_2 = structure_set.get_optimal_hairpin_set(
+            lengths[2], loop_struct, len(df) * 1.2, structure_set.AddType.RIGHT
+        )
+        sets.extend([h_set, hp_set_1, hp_set_2])
+    sets.extend([p5, p3])
     df_result = get_best_designs_in_dataframe(df, sets, design_opts)
     return df_result
 
@@ -57,6 +123,8 @@ def setup_logging(type, log_level):
 
 def setup_dataframe_from_cli(args: Dict) -> pd.DataFrame:
     df = pd.read_csv(args["csv"])
+    if "name" not in df:
+        df["name"] = [f"seq_{x}" for x in range(len(df))]
     if "sequence" not in df:
         log.error(f"csv must contain a `sequence` column")
         exit()
@@ -95,13 +163,29 @@ def final_results(df_result, kwargs):
     log.info(f"{diff} constructs were discarded as they were below cutoffs")
     fname = Path(kwargs["csv"]).stem
     write_results_to_file(df_result, fname, kwargs["opool_name"])
+    return df_result
+
+
+def compute_edit_distance(df_result):
+    scores = [100 for _ in range(len(df_result))]
+    sequences = list(df_result["sequence"])
+    for i, seq1 in enumerate(sequences):
+        if i % 10 == 0:
+            print(i)
+        for j, seq2 in enumerate(sequences):
+            if i >= j:
+                continue
+            diff = editdistance.eval(seq1, seq2)
+            if scores[i] > diff:
+                scores[i] = diff
+            if scores[j] > diff:
+                scores[j] = diff
+    avg = np.sum(scores)
+    print(avg / len(df_result))
 
 
 def common_options(function):
     function = click.argument("csv", type=click.Path(exists=True))(function)
-    function = click.option("-t", "--btype", default="helix", help="type")(
-        function
-    )
     function = click.option("-p5", "--p5-common", help="p5 sequence")(function)
     function = click.option("-p3", "--p3-common", help="p3 sequence")(function)
     function = click.option("-o", "--output", default="out.csv")(function)
@@ -131,6 +215,7 @@ def cli():
 
 
 @cli.command()
+@click.option("-t", "--btype", default="helix", help="type")
 @click.option("-l", "--length", default=6, type=int, help="length")
 @click.option("--add_5p", is_flag=True)
 @common_options
@@ -140,22 +225,50 @@ def barcode(**kwargs):
     if kwargs["add_5p"]:
         add_type = structure_set.AddType.LEFT
     btype = kwargs["btype"].lower()
-    if btype != "hairpin":
-        df_result = single_barcode(
-            df, btype, kwargs["length"], p5, p3, opts, add_type=add_type
-        )
-    else:
-        df_result = single_barcode(
-            df,
-            btype,
-            kwargs["length"],
-            p5,
-            p3,
-            opts,
-            loop=kwargs["loop"],
-            add_type=add_type,
-        )
+    df_result = single_barcode(
+        df,
+        btype,
+        kwargs["length"],
+        p5,
+        p3,
+        opts,
+        loop=kwargs["loop"],
+        add_type=add_type,
+    )
     final_results(df_result, kwargs)
+
+
+@cli.command()
+@click.option("-t", "--btype", default="helix_hairpin", help="type")
+@click.option(
+    "-l", "--lengths", default=(6, 6), type=(int, int), help="lengths"
+)
+@common_options
+def barcode2(**kwargs):
+    df, p5, p3, opts = setup_from_cli(kwargs)
+    df = df[:200]
+    btype = kwargs["btype"].lower()
+    df_result = double_barcode(
+        df, btype, kwargs["lengths"], p5, p3, opts, loop=kwargs["loop"]
+    )
+    df_result = final_results(df_result, kwargs)
+    compute_edit_distance(df_result)
+
+
+@cli.command()
+@click.option("-t", "--btype", default="hairpin_helix_hairpin", help="type")
+@click.option(
+    "-l", "--lengths", default=(6, 6, 6), type=(int, int, int), help="lengths"
+)
+@common_options
+def barcode3(**kwargs):
+    df, p5, p3, opts = setup_from_cli(kwargs)
+    btype = kwargs["btype"].lower()
+    df_result = triple_barcode(
+        df, btype, kwargs["lengths"], p5, p3, opts, loop=kwargs["loop"]
+    )
+    df_result = final_results(df_result, kwargs)
+    compute_edit_distance(df_result)
 
 
 if __name__ == "__main__":

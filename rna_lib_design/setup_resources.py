@@ -42,8 +42,8 @@ def generate_helix_barcodes(length, min_distance, gus):
             log.info(f"{len(barcodes)} barcodes found so far")
         barcodes.append(barcode)
         count = 0
-        if len(barcodes) > 200000:
-            log.warn("reached max num of barcodes: 200000")
+        if len(barcodes) > 100000:
+            log.warn("reached max num of barcodes: 100000")
             break
 
     return barcodes
@@ -98,7 +98,7 @@ def hcodesweep(length_min, length_max):
     df = pd.DataFrame(columns="length diff gu size path".split())
     df_pos = 0
     for pos in range(length_min, length_max + 1):
-        for md in range(pos - 1, pos * 2, 1):
+        for md in range(pos - 2, pos * 2, 1):
             for gu in range(0, int(pos / 2), 1):
                 for i in range(0, 1):
                     barcodes = generate_helix_barcodes(pos, md, gu)
