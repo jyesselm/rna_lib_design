@@ -8,8 +8,8 @@ from typing import List, Dict
 import yaml
 
 import vienna
-import seq_tools.data_frame as stdf
-from rna_lib_design import structure_set, logger, structure
+from seq_tools.data_frame import convert_to_dna
+from rna_lib_design import structure_set, logger, structure, util
 
 log = logger.setup_applevel_logger()
 
@@ -110,18 +110,35 @@ def get_best_designs_in_dataframe(
 def write_results_to_file(
     df: pd.DataFrame, fname="results", opool_name="opool"
 ) -> None:
+    log.info(f"{fname}-all.csv contains all information generated from run")
     df.to_csv(f"{fname}-all.csv", index=False)
+    log.info(
+        f"{fname}-rna.csv contains only information related to the RNA sequence"
+    )
     df_sub = df[["name", "sequence", "structure", "ens_defect"]]
     df_sub.to_csv(f"{fname}-rna.csv", index=False)
 
     df_sub = df[["name", "sequence"]].copy()
+    convert_to_dna(df_sub)
+    f = open(f"{fname}.fasta", "w")
+    for i, row in df_sub.iterrows():
+        f.write(f">{row['name']}\n{row['sequence']}\n")
+    f.close()
+    edit_dist = util.compute_edit_distance(df_sub)
+    log.info(f"the edit distance of lib is: {edit_dist}")
     df_sub["sequence"] = [
         "TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]
     ]
-    stdf.convert_to_dna(df_sub)
+    p5_seq = util.indentify_p5_sequence(df_sub["sequence"])
+    fwd_primer = util.indentify_fwd_primer(df_sub["sequence"])
+    rev_primer = util.indentify_rev_primer(df_sub["sequence"])
+    log.info("p5 seq -> " + str(p5_seq))
+    log.info("fwd primer -> " + str(fwd_primer))
+    log.info("rev primer -> " + str(rev_primer))
     df_sub.to_csv(f"{fname}-dna.csv", index=False)
     df_sub = df_sub.rename(
         columns={"name": "Pool name", "sequence": "Sequence"}
     )
     df_sub["Pool name"] = opool_name
     df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
+    df_sub.to_csv(f"{fname}-opool.csv", index=False)

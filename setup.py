@@ -21,12 +21,19 @@ setup(
     author_email="jyesselm@unl.edu",
     packages=["rna_lib_design"],
     py_modules=[
-        "rna_lib_design/structure",
-        "rna_lib_design/logger",
-        "rna_lib_design/util",
-        "rna_lib_design/structure_dict",
+        "rna_lib_design/assemble",
+        "rna_lib_design/barcode",
+        "rna_lib_design/defaults",
         "rna_lib_design/design",
+        "rna_lib_design/logger",
+        "rna_lib_design/params",
+        "rna_lib_design/query_resources",
+        "rna_lib_design/settings",
         "rna_lib_design/setup_resources",
+        "rna_lib_design/structure",
+        "rna_lib_design/structure_set",
+        "rna_lib_design/testing",
+        "rna_lib_design/util",
     ],
     include_package_data=True,
     install_requires=requirements,
@@ -34,6 +41,8 @@ setup(
         "console_scripts": [
             "rld_setup = rna_lib_design.setup_resources:cli",
             "rld_design = rna_lib_design.design:cli",
+            "rld_assemble = rna_lib_design.assemble:cli",
+            "rld_barcode = rna_lib_design.barcode:cli"
         ]
     },
 )

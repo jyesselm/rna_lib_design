@@ -12,7 +12,7 @@ from rna_lib_design.design import (
     write_results_to_file,
     DesignOptions,
 )
-from rna_lib_design import logger, structure_set, structure, defaults
+from rna_lib_design import logger, structure_set, structure, defaults, util
 
 log = logger.setup_applevel_logger()
 
@@ -166,24 +166,6 @@ def final_results(df_result, kwargs):
     return df_result
 
 
-def compute_edit_distance(df_result):
-    scores = [100 for _ in range(len(df_result))]
-    sequences = list(df_result["sequence"])
-    for i, seq1 in enumerate(sequences):
-        if i % 10 == 0:
-            print(i)
-        for j, seq2 in enumerate(sequences):
-            if i >= j:
-                continue
-            diff = editdistance.eval(seq1, seq2)
-            if scores[i] > diff:
-                scores[i] = diff
-            if scores[j] > diff:
-                scores[j] = diff
-    avg = np.sum(scores)
-    print(avg / len(df_result))
-
-
 def common_options(function):
     function = click.argument("csv", type=click.Path(exists=True))(function)
     function = click.option("-p5", "--p5-common", help="p5 sequence")(function)
@@ -236,6 +218,7 @@ def barcode(**kwargs):
         add_type=add_type,
     )
     final_results(df_result, kwargs)
+    util.compute_edit_distance(df_result)
 
 
 @cli.command()
@@ -252,7 +235,7 @@ def barcode2(**kwargs):
         df, btype, kwargs["lengths"], p5, p3, opts, loop=kwargs["loop"]
     )
     df_result = final_results(df_result, kwargs)
-    compute_edit_distance(df_result)
+    util.compute_edit_distance(df_result)
 
 
 @cli.command()
@@ -268,7 +251,7 @@ def barcode3(**kwargs):
         df, btype, kwargs["lengths"], p5, p3, opts, loop=kwargs["loop"]
     )
     df_result = final_results(df_result, kwargs)
-    compute_edit_distance(df_result)
+    util.compute_edit_distance(df_result)
 
 
 if __name__ == "__main__":

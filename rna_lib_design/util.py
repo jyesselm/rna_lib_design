@@ -1,33 +1,114 @@
 import pandas as pd
+import numpy as np
 import random
+import editdistance
+from dataclasses import dataclass
+from typing import List
 
-from rna_lib_design import params
+from seq_tools.sequence import convert_to_dna, get_reverse_complement
+from rna_lib_design import params, logger, settings
 
-
-def check_cols_in_dataframe(df, cols):
-    for c in cols:
-        if c not in df:
-            raise ValueError("column {} must be present in dataframe".format(c))
-
-
-def seq_to_dna(seq):
-    new_seq = ""
-    for e in seq:
-        if e == "U":
-            new_seq += "T"
-        else:
-            new_seq += e
-    return new_seq
+log = logger.setup_applevel_logger()
 
 
-def seq_to_rna(seq):
-    new_seq = ""
-    for e in seq:
-        if e == "T":
-            new_seq += "U"
-        else:
-            new_seq += e
-    return new_seq
+@dataclass(frozen=True, order=True)
+class SequenceInfo(object):
+    name: str
+    sequence: str
+    code: str
+
+
+def get_primer_dataframe(file_path: str) -> pd.DataFrame:
+    df = pd.read_csv(file_path)
+    df["len"] = [len(x) for x in df["sequence"]]
+    df.sort_values(["len"], ascending=False, inplace=True)
+    df.reset_index(inplace=True)
+    return df
+
+
+def find_common_subsequence(
+    common_seqs: pd.DataFrame, seqs: List[str]
+) -> SequenceInfo:
+    seqs = [convert_to_dna(seq) for seq in seqs]
+    saved_row = None
+    for i, row in common_seqs.iterrows():
+        fail = False
+        for seq in seqs:
+            if seq.find(row["sequence"]) == -1:
+                fail = True
+                break
+        if fail:
+            continue
+        saved_row = row
+        break
+    if saved_row is None:
+        return SequenceInfo("", "", "")
+    else:
+        return SequenceInfo(
+            saved_row["name"], saved_row["sequence"], saved_row["code"]
+        )
+
+
+def find_valid_subsequences(
+    common_seqs: pd.DataFrame, seqs: List[str]
+) -> pd.DataFrame:
+    seqs = [convert_to_dna(seq) for seq in seqs]
+    mask = [False for _ in range(len(common_seqs))]
+    for i, row in common_seqs.iterrows():
+        fail = False
+        for seq in seqs:
+            if seq.find(row["sequence"]) == -1:
+                fail = True
+                break
+        if fail:
+            continue
+        mask[i] = True
+    return common_seqs[mask]
+
+
+def indentify_p5_sequence(seqs: List[str]) -> SequenceInfo:
+    df = get_primer_dataframe(settings.RESOURCES_PATH + "p5_sequences.csv")
+    return find_common_subsequence(df, seqs)
+
+
+def indentify_fwd_primer(seqs: List[str]) -> SequenceInfo:
+    df = get_primer_dataframe(settings.RESOURCES_PATH + "fwd_primers.csv")
+    return find_common_subsequence(df, seqs)
+
+
+def indentify_rev_primer(seqs: List[str]) -> SequenceInfo:
+    df = get_primer_dataframe(settings.RESOURCES_PATH + "rev_primers.csv")
+    seqs = [get_reverse_complement(seq, "DNA") for seq in seqs]
+    return find_common_subsequence(df, seqs)
+
+
+def find_valid_fwd_primers(seqs: List[str]) -> pd.DataFrame:
+    df = get_primer_dataframe(settings.RESOURCES_PATH + "fwd_primers.csv")
+    return find_valid_subsequences(df, seqs)
+
+
+def find_valid_rev_primers(seqs: List[str]) -> pd.DataFrame:
+    df = get_primer_dataframe(settings.RESOURCES_PATH + "rev_primers.csv")
+    seqs = [get_reverse_complement(seq, "DNA") for seq in seqs]
+    return find_valid_subsequences(df, seqs)
+
+
+def compute_edit_distance(df_result):
+    scores = [100 for _ in range(len(df_result))]
+    sequences = list(df_result["sequence"])
+    for i, seq1 in enumerate(sequences):
+        if i % 10 == 0:
+            print(i)
+        for j, seq2 in enumerate(sequences):
+            if i >= j:
+                continue
+            diff = editdistance.eval(seq1, seq2)
+            if scores[i] > diff:
+                scores[i] = diff
+            if scores[j] > diff:
+                scores[j] = diff
+    avg = np.mean(scores)
+    return avg
 
 
 def random_wc_basepair():

@@ -1,15 +1,24 @@
+import pandas as pd
 import vienna
-from rna_lib_design.design import get_best_design
-from rna_lib_design import logger, structure_set, structure
+from rna_lib_design import logger, structure_set, structure, settings
 
 log = logger.setup_applevel_logger()
 
 
 def get_p5_from_str(p5_common) -> structure_set.StructureSet:
     common_structs = structure.common_structures()
+    p5_sequences = pd.read_csv(settings.RESOURCES_PATH + "/p5_sequences.csv")
     if p5_common is None:
         p5 = common_structs["ref_hairpin_5prime"]
         log.info(f"no p5 sequence supplied using: {p5.sequence}")
+    elif p5_common in p5_sequences["name"].unique():
+        row = p5_sequences[p5_sequences["name"] == p5_common].iloc[0]
+        log.info(f"p5 supplied: {p5_common}")
+        log.info(
+            f"p5 sequence: {row['sequence']}, structure: {row['structure']}, "
+            f"code: {row['code']}"
+        )
+        p5 = structure.rna_structure(row["sequence"], row["structure"])
     else:
         r = vienna.fold(p5_common)
         log.info(f"p5 sequence supplied: {p5_common}")

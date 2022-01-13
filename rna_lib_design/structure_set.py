@@ -167,8 +167,17 @@ class SingleStructureSet(StructureSet):
 
 
 def get_single_struct_set(struct, add_type):
-    df = pd.DataFrame(columns="seq ss".split())
-    df.loc[0] = [str(struct.sequence), str(struct.dot_bracket)]
+    if isinstance(struct, structure.Structure):
+        df = pd.DataFrame(columns="seq ss".split())
+        df.loc[0] = [str(struct.sequence), str(struct.dot_bracket)]
+    else:
+        df = pd.DataFrame(columns="seq1 seq2 ss1 ss2".split())
+        df.loc[0] = [
+            str(struct[0].sequence),
+            str(struct[1].sequence),
+            str(struct[0].dot_bracket),
+            str(struct[1].dot_bracket),
+        ]
     return SingleStructureSet(df, add_type)
 
 

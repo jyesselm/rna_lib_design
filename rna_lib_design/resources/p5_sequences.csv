@@ -1,0 +1,8 @@
+name,sequence,structure,code
+org_minittr_pool_rev_seq_primer,GGAAGATCGAGTAGATCAAA,....((((.....))))...,P000Y
+p4-p6-m2seq-cdna-rev-p,GGCCAAAACAACGG,..............,P0016
+triloop_p5_rev_seq_primer,GGTACTATGTACCAAAG,(((((...)))))....,P0057
+uucg_p5_rev_primer,GGAACAGCACTTCGGTGCAAA,......((((....))))...,P0058
+cloud_lab_remake_rev_seq,GGGCGAAAGCCC,((((....)))),P0062
+preliminary_data_1_rev_seq,GGGCGAAAGCCC,((((....)))),P0063
+large_bulge_jcts_rev_p,GGGCTTCGGCCC,((((....)))),P011I
