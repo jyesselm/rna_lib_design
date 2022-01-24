@@ -1,20 +1,29 @@
 import click
 import pandas as pd
 import numpy as np
+import shutil
+import os
 import logging
 from typing import Dict, Tuple
 from pathlib import Path
-import editdistance
 
+import vienna
 import seq_tools.data_frame as stdf
 from rna_lib_design.design import (
     get_best_designs_in_dataframe,
     write_results_to_file,
     DesignOptions,
 )
-from rna_lib_design import logger, structure_set, structure, defaults, util
+from rna_lib_design import (
+    logger,
+    structure_set,
+    structure,
+    defaults,
+    util,
+    design,
+)
 
-log = logger.setup_applevel_logger()
+log = logger.setup_applevel_logger(file_name="barcode.log")
 
 
 def single_barcode(
@@ -26,6 +35,8 @@ def single_barcode(
     design_opts: DesignOptions,
     add_type: structure_set.AddType = structure_set.AddType.RIGHT,
     loop: str = None,
+    p5_buffer = None,
+    p3_buffer = None
 ) -> pd.DataFrame:
     if btype == "helix":
         v_set = structure_set.get_optimal_helix_set(length, len(df) * 1.2)
@@ -41,7 +52,9 @@ def single_barcode(
     else:
         log.error(f"{btype} is not a valid type")
         exit()
-    sets = [v_set, p5, p3]
+    sets = [v_set]
+    setup_buffer_sequences(p5_buffer, p3_buffer, sets)
+    sets.append([p5, p3])
     df_result = get_best_designs_in_dataframe(df, sets, design_opts)
     return df_result
 
@@ -54,6 +67,8 @@ def double_barcode(
     p3: structure_set.StructureSet,
     design_opts: DesignOptions,
     loop: str = None,
+    p5_buffer: str = None,
+    p3_buffer: str = None,
 ):
     sets = []
     loop_struct = defaults.get_loop_from_str(loop)
@@ -63,13 +78,13 @@ def double_barcode(
             lengths[1], loop_struct, len(df) * 1.2, structure_set.AddType.RIGHT
         )
         sets.extend([h_set, hp_set])
-    elif type == "hairpin_helix":
+    elif btype == "hairpin_helix":
         h_set = structure_set.get_optimal_helix_set(lengths[1], len(df) * 1.2)
         hp_set = structure_set.get_optimal_hairpin_set(
             lengths[0], loop_struct, len(df) * 1.2, structure_set.AddType.LEFT
         )
         sets.extend([h_set, hp_set])
-    elif type == "hairpin_hairpin":
+    elif btype == "hairpin_hairpin":
         hp_set_1 = structure_set.get_optimal_hairpin_set(
             lengths[0], loop_struct, len(df) * 1.2, structure_set.AddType.LEFT
         )
@@ -80,6 +95,7 @@ def double_barcode(
     else:
         log.error(f"unknown type {btype}")
         exit()
+    setup_buffer_sequences(p5_buffer, p3_buffer, sets)
     sets.extend([p5, p3])
     df_result = get_best_designs_in_dataframe(df, sets, design_opts)
     return df_result
@@ -113,6 +129,29 @@ def triple_barcode(
 ################################################################################
 # cli functions                                                                #
 ################################################################################
+
+
+def setup_buffer_sequences(p5_buffer, p3_buffer, sets):
+    if p5_buffer is not None:
+        log.info(f"p5 buffer sequence supplied {p5_buffer}")
+        p5_buffer_struct = structure.rna_structure(
+            p5_buffer, vienna.fold(p5_buffer).dot_bracket
+        )
+        sets.append(
+            structure_set.get_single_struct_set(
+                p5_buffer_struct, structure_set.AddType.LEFT
+            )
+        )
+    if p3_buffer is not None:
+        log.info(f"p3 buffer sequence supplied {p3_buffer}")
+        p3_buffer_struct = structure.rna_structure(
+            p3_buffer, vienna.fold(p3_buffer).dot_bracket
+        )
+        sets.append(
+            structure_set.get_single_struct_set(
+                p3_buffer_struct, structure_set.AddType.RIGHT
+            )
+        )
 
 
 def setup_logging(type, log_level):
@@ -161,8 +200,6 @@ def final_results(df_result, kwargs):
     df_result = df_result.dropna()
     diff = org_total - len(df_result)
     log.info(f"{diff} constructs were discarded as they were below cutoffs")
-    fname = Path(kwargs["csv"]).stem
-    write_results_to_file(df_result, fname, kwargs["opool_name"])
     return df_result
 
 
@@ -188,6 +225,14 @@ def common_options(function):
         function
     )
     function = click.option("-on", "--opool-name", default="opool")(function)
+    function = click.option(
+        "-n",
+        "--name",
+        default="barcode_results",
+        help="what to call the results",
+    )(function)
+    function = click.option("-p3b", "--p3-buffer")(function)
+    function = click.option("-p5b", "--p5-buffer")(function)
     return function
 
 
@@ -216,6 +261,8 @@ def barcode(**kwargs):
         opts,
         loop=kwargs["loop"],
         add_type=add_type,
+        p5_buffer=kwargs["p5_buffer"],
+        p3_buffer=kwargs["p3_buffer"]
     )
     final_results(df_result, kwargs)
     util.compute_edit_distance(df_result)
@@ -229,13 +276,27 @@ def barcode(**kwargs):
 @common_options
 def barcode2(**kwargs):
     df, p5, p3, opts = setup_from_cli(kwargs)
-    df = df[:200]
+    log.info(f"lengths: {kwargs['lengths']}")
     btype = kwargs["btype"].lower()
     df_result = double_barcode(
-        df, btype, kwargs["lengths"], p5, p3, opts, loop=kwargs["loop"]
+        df,
+        btype,
+        kwargs["lengths"],
+        p5,
+        p3,
+        opts,
+        loop=kwargs["loop"],
+        p5_buffer=kwargs["p5_buffer"],
+        p3_buffer=kwargs["p3_buffer"],
     )
-    df_result = final_results(df_result, kwargs)
+    os.makedirs(kwargs["name"], exist_ok=True)
+    design.write_results_to_file(
+        df, f"{kwargs['name']}/results", kwargs["name"]
+    )
+    if os.path.isfile(f"{kwargs['name']}/barcode.log"):
+        os.remove(f"{kwargs['name']}/barcode.log")
     util.compute_edit_distance(df_result)
+    shutil.move("barcode.log", kwargs["name"])
 
 
 @cli.command()

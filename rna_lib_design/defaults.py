@@ -47,8 +47,13 @@ def get_p3_from_str(p3_common) -> structure_set.StructureSet:
 
 
 def get_loop_from_str(loop) -> structure.Structure:
+    common_structs = structure.common_structures()
     if loop is None:
         loop_struct = structure.get_common_struct("uucg_loop")
+    elif loop in common_structs:
+        loop_struct = common_structs[loop]
+        log.info(f"loop supplied: {loop}")
+        log.info(f"seq: {loop_struct.sequence} ss: {loop_struct.dot_bracket}")
     else:
         r = vienna.fold(loop)
         log.info(f"loop sequence supplied: {loop}")
