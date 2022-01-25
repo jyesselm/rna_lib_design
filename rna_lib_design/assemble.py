@@ -34,7 +34,7 @@ def setup_from_cli(kwargs: Dict):
     return [df, p5, p3, opts]
 
 
-def __get_set_from_sequence(name: str, n: Dict):
+def __et_set_from_sequence(name: str, n: Dict):
     if "add" in n:
         add_type = structure_set.str_to_add_type(n["add"])
     else:

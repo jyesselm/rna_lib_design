@@ -54,7 +54,7 @@ def single_barcode(
         exit()
     sets = [v_set]
     setup_buffer_sequences(p5_buffer, p3_buffer, sets)
-    sets.append([p5, p3])
+    sets.extend([p5, p3])
     df_result = get_best_designs_in_dataframe(df, sets, design_opts)
     return df_result
 

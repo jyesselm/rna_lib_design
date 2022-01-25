@@ -44,7 +44,7 @@ def get_best_design(
     best_uses = []
     if org_ens_defect > 100:
         if len(struct) > 5:
-            org_ens_defect = vienna.fold(struct).ensemble_diversity
+            org_ens_defect = vienna.fold(struct).ens_defect
         else:
             org_ens_defect = 1
     while 1:
@@ -57,10 +57,10 @@ def get_best_design(
         # print(final_struct.dot_bracket, vr.ensemble_diversity, score)
         if final_struct.dot_bracket != vr.dot_bracket:
             continue
-        if opts.max_ens_defect < vr.ensemble_diversity - org_ens_defect:
+        if opts.max_ens_defect < vr.ens_defect - org_ens_defect:
             continue
-        if vr.ensemble_diversity < best_score:
-            best_score = vr.ensemble_diversity
+        if vr.ens_defect < best_score:
+            best_score = vr.ens_defect
             best = final_struct
             best_uses = [x.get_current_pos() for x in sd_dicts]
         if count > opts.max_design_solutions:
