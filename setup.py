@@ -23,7 +23,7 @@ setup(
     py_modules=[
         "rna_lib_design/assemble",
         "rna_lib_design/barcode",
-        "rna_lib_design/defaults",
+        "rna_lib_design/cli"
         "rna_lib_design/design",
         "rna_lib_design/logger",
         "rna_lib_design/params",
@@ -39,10 +39,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "rld_setup = rna_lib_design.setup_resources:cli",
-            "rld_design = rna_lib_design.design:cli",
-            "rld_assemble = rna_lib_design.assemble:cli",
-            "rld_barcode = rna_lib_design.barcode:cli"
+            "rld = rna_lib_design.cli:cli"
         ]
     },
 )

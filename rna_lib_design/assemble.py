@@ -10,6 +10,7 @@ import shutil
 import vienna
 from rna_lib_design import structure, structure_set, logger, design, defaults
 from rna_lib_design.design import DesignOptions
+#from rna_lib_design.cli import
 
 log = logger.setup_applevel_logger(file_name="assemble.log")
 
