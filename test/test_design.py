@@ -28,3 +28,14 @@ def test_design_2():
         == "....((((.....))))...((((((((((....))))))))))...................."
     )
     assert sol.ens_defect < 1.0
+
+def test_randomize_helices():
+    seq = "GAGCCUAUGGCUGCCACCCGAGCCCUUGAACUACAGGGAACACUGGAAACAGUACCCCCUGCAAGGGCGUUUGACGGUGGCAGCCUAAGGGCUC"
+    ss = "((((((..((((((((((((((((((((.....(((((...((((....))))...))))))))))))..)))..))))))))))...))))))"
+    exclude = design.str_to_range("1-9,19,43")
+    exclude_seqs = ["GAGCCUAUGG", "CCGAG", "UGGAAACA"]
+    rh = design.HelixRandomizer()
+    r = rh.run(seq, ss, exclude_seqs=exclude_seqs)
+    print(r)
+    #design.randomize_helices(seq, ss, exclude)
+

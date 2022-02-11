@@ -1,5 +1,6 @@
 import pandas as pd
 from enum import IntEnum
+from numpy import random
 
 from rna_lib_design import structure, settings, logger
 
@@ -31,7 +32,7 @@ def str_to_add_type(s: str) -> AddType:
 
 class StructureSet(object):
     def __init__(self, df, add_type):
-        self.df = df.sample(frac=1).reset_index(drop=True)
+        self.df = df.sample(frac=1, random_state=random.seed()).reset_index(drop=True)
         self.df["used"] = 0
         self.add_type = add_type
         self.current = -1

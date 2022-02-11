@@ -97,8 +97,8 @@ def compute_edit_distance(df_result):
     scores = [100 for _ in range(len(df_result))]
     sequences = list(df_result["sequence"])
     for i, seq1 in enumerate(sequences):
-        if i % 10 == 0:
-            print(i)
+        #if i % 10 == 0:
+        #    print(i)
         for j, seq2 in enumerate(sequences):
             if i >= j:
                 continue
@@ -121,6 +121,13 @@ def random_basepair():
 
 def random_gu_basepair():
     return random.choice(params.basepairs_gu)
+
+
+def random_weighted_basepair():
+    if random.randint(0, 1000) > 300:
+        return random_wc_basepair()
+    else:
+        return random_gu_basepair()
 
 
 def hamming(a, b):
@@ -196,3 +203,16 @@ def random_helix(length, gu=0):
 
 def num_of_basepairs(self, ss):
     pass
+
+
+@dataclass(frozen=True, order=True)
+class Stretches:
+    max_stretch_1: int
+    max_stretch_2: int
+    max_gc_stretch: int
+
+
+def compute_stretches(seq1, seq2):
+    return Stretches(
+        max_stretch(seq1), max_stretch(seq2), max_gc_stretch(seq1, seq2)
+    )
