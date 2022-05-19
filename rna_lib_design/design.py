@@ -32,6 +32,7 @@ class DesignOptions:
     max_ens_defect: float = 2.0
     max_design_attempts: int = 100
     max_design_solutions: int = 10
+    use_structure: bool = True
 
 
 def get_best_design(
@@ -67,8 +68,9 @@ def get_best_design(
             best_uses = [x.get_current_pos() for x in sd_dicts]
         if count > opts.max_design_solutions:
             break
-    for i, bu in enumerate(best_uses):
-        sd_dicts[i].set_used(bu)
+    if opts.use_structure:
+        for i, bu in enumerate(best_uses):
+            sd_dicts[i].set_used(bu)
     return DesignResults(best_score, best)
 
 
@@ -76,6 +78,7 @@ def get_best_designs_in_dataframe(
     df: pd.DataFrame,
     sets: List[structure_set.StructureSet],
     opts: DesignOptions,
+    max: int = 1000000,
 ) -> pd.DataFrame:
     df["org_sequence"] = df["sequence"]
     df["org_structure"] = df["structure"]
@@ -83,7 +86,13 @@ def get_best_designs_in_dataframe(
         df["org_ens_defect"] = df["ens_defect"]
     else:
         df["ens_defect"] = np.nan
+    count = 0
     for i, row in df.iterrows():
+        if i > max:
+            break
+        count += 1
+        if count % 100 == 0:
+            log.info(f"barcoded {count} constructs!")
         struct = structure.rna_structure(row["sequence"], row["structure"])
         if "org_ens_defect" in df:
             sol = get_best_design(sets, struct, opts, row["org_ens_defect"])
@@ -106,6 +115,8 @@ def get_best_designs_in_dataframe(
                 str(sol.design.dot_bracket),
                 sol.ens_defect,
             ]
+    if max < len(df):
+        df = df[:max]
     return df
 
 
@@ -213,15 +224,15 @@ class HelixRandomizer(object):
 
     def run(self, sequence, structure, exclude=None, exclude_seqs=None):
         sequence = sequence.replace("T", "U")
-        #log.debug("excluded: " + str(exclude))
+        # log.debug("excluded: " + str(exclude))
         if exclude is None:
             exclude = []
         if exclude_seqs is not None:
             for es in exclude_seqs:
                 pos = sequence.find(es)
                 if pos != -1:
-                    exclude.extend(list(range(pos, pos+len(es)+1)))
-        #log.debug("final excluded: " + str(exclude))
+                    exclude.extend(list(range(pos, pos + len(es) + 1)))
+        # log.debug("final excluded: " + str(exclude))
         self.sequence, self.structure = sequence, structure
         s = rl.SecStruct(structure, sequence)
         best = 1000
@@ -238,6 +249,8 @@ class HelixRandomizer(object):
             if r.ens_defect < best:
                 best = r.ens_defect
                 best_seq = s.sequence
-        return DesignResults(best, rna_structure(best_seq, structure))
-
+        if len(best_seq) == 0:
+            return DesignResults(best, rna_structure("A", "."))
+        else:
+            return DesignResults(best, rna_structure(best_seq, structure))
 

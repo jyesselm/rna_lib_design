@@ -15,7 +15,7 @@ from rna_lib_design import logger, structure_set, params, structure
 log = logger.setup_applevel_logger()
 
 
-def generate_helix_barcodes(length, min_distance, gus):
+def generate_helix_barcodes(length, min_distance, gus, max_num=100000):
     barcodes = []
     count = 0
     while True:
@@ -42,8 +42,8 @@ def generate_helix_barcodes(length, min_distance, gus):
             log.info(f"{len(barcodes)} barcodes found so far")
         barcodes.append(barcode)
         count = 0
-        if len(barcodes) > 100000:
-            log.warn("reached max num of barcodes: 100000")
+        if len(barcodes) > max_num:
+            log.warn(f"reached max num of barcodes: {max_num}")
             break
 
     return barcodes
@@ -84,8 +84,9 @@ def cli():
 @click.option("-md", "--min-dist", type=int, required=True)
 @click.option("-gu", "--gus", default=0, type=int)
 @click.option("-o", "--output", default="helices.csv")
-def hcodes(length, min_dist, gus, output):
-    barcodes = generate_helix_barcodes(length, min_dist, gus)
+@click.option("-mn", "--max-num", default=100000)
+def hcodes(length, min_dist, gus, output, max_num):
+    barcodes = generate_helix_barcodes(length, min_dist, gus, max_num)
     log.info(f"{len(barcodes)} barcodes found!")
     write_barcodes_to_file(output, barcodes)
 
@@ -146,7 +147,7 @@ def twoways(sx, sy, just_list):
     hp_set.remove_dots()
     hp_set.set_buffer(None)
     bases = "ACGU"
-    basepairs = params.basepairs
+    basepairs = params.basepairs_wc
     data = []
     for bp1 in basepairs:
         for bp2 in basepairs:
@@ -156,6 +157,7 @@ def twoways(sx, sy, just_list):
             else:
                 sx_combos = [""]
             for c1 in sx_combos:
+                print(c1)
                 sx_seq_str = bp1[0] + "".join(c1) + bp2[0]
                 sx_ss_str = "(" + "." * len(c1) + "("
                 sx_struct = structure.rna_structure(sx_seq_str, sx_ss_str)

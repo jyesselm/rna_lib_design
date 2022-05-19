@@ -119,8 +119,34 @@ def test_get_sstrands():
     assert struct.dot_bracket == "....."
 
 
-def get_common_seq_structure_set():
+def test_get_common_seq_structure_set():
     struct_set = structure_set.get_common_seq_structure_set(
         "ref_hairpin_5prime"
     )
     assert len(struct_set) == 1
+
+
+def test_split_helices():
+    struc_set = testing.get_test_helices()
+    struc_sets = struc_set.split(3)
+    assert len(struc_sets) == 3
+    helix = struc_sets[0].get_random()
+    assert len(helix[0]) == 6
+
+
+def test_split_single():
+    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
+    struct_set = structure_set.get_single_struct_set(
+        rna_struct, structure_set.AddType.RIGHT
+    )
+    struct_sets = struct_set.split(10)
+    struct_1 = struct_sets[0].get_random()[0]
+    struct_set.set_used()
+    struct_2 = struct_sets[0].get_random()[0]
+    assert struct_1 == struct_2
+
+
+def test_split_hairpin():
+    struc_set = testing.get_test_hairpin(structure_set.AddType.RIGHT)
+    struc_sets = struc_set.split(3)
+    assert len(struc_sets[0].get_random()[0]) == 21

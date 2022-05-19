@@ -1,4 +1,8 @@
 length,diff,size,path
+1,1,4,sstrand/sstrand_len_1_dist_1.csv
+2,1,13,sstrand/sstrand_len_2_dist_1.csv
+3,1,13,sstrand/sstrand_len_3_dist_1.csv
+4,1,13,sstrand/sstrand_len_4_dist_1.csv
 5,1,996,sstrand/sstrand_len_5_dist_1.csv
 5,2,171,sstrand/sstrand_len_5_dist_2.csv
 5,3,32,sstrand/sstrand_len_5_dist_3.csv

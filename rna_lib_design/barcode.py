@@ -1,10 +1,8 @@
-import click
-import cloup
 import pandas as pd
-import shutil
-import os
+import numpy as np
 from typing import Dict, Tuple, Optional
 from pathlib import Path
+from multiprocessing import Pool
 
 from rna_lib_design.design import (
     get_best_designs_in_dataframe,
@@ -25,6 +23,8 @@ class Barcoder(object):
         self.p3: Optional[StructureSet] = None
         self.p5_buffer: Optional[StructureSet] = None
         self.p3_buffer: Optional[StructureSet] = None
+        self.max: int = 1000000
+        self.multiprocess = -1
 
     def set_p5_and_p3(
         self, p5: Optional[StructureSet], p3: Optional[StructureSet]
@@ -42,7 +42,23 @@ class Barcoder(object):
         for ao in add_ons:
             if ao is not None:
                 sets.append(ao)
-        return get_best_designs_in_dataframe(df, sets, design_opts)
+        if self.multiprocess == -1:
+            return get_best_designs_in_dataframe(df, sets, design_opts)
+        else:
+            p = Pool(processes=self.multiprocess)
+            spls = [e.split(self.multiprocess) for e in sets]
+            set_spls = []
+            for i in range(self.multiprocess):
+                split_set = []
+                for j in range(len(sets)):
+                    split_set.append(spls[j][i])
+                set_spls.append(split_set)
+            dfs = np.array_split(df, self.multiprocess)
+            all_design_opts = [design_opts for x in range(self.multiprocess)]
+            output_dfs = p.starmap(
+                get_best_designs_in_dataframe, zip(dfs, set_spls, all_design_opts)
+            )
+            return pd.concat(output_dfs)
 
 
 class SingleBarcoder(Barcoder):
@@ -76,6 +92,40 @@ class SingleBarcoder(Barcoder):
             # loop_struct = defaults.get_loop_from_str(self.loop)
             v_set = structure_set.get_optimal_hairpin_set(
                 self.length, self.loop, len(df) * 1.2, self.add_type
+            )
+        else:
+            log.error(f"{self.btype} is not a valid type")
+            exit()
+        return self._barcode_w_sets(df, [v_set], design_opts)
+
+
+class CustomSingleBarcoder(Barcoder):
+    def __init__(self, btype, bfile, add_type=AddType.RIGHT, loop=None):
+        super().__init__(btype)
+        self.barcode_file = bfile
+        self.add_type = add_type
+        self.loop: Optional[Structure] = loop
+
+    def set_loop(self, loop: Structure):
+        self.loop = loop
+
+    def barcode(
+        self, df: pd.DataFrame, design_opts: DesignOptions
+    ) -> pd.DataFrame:
+        df_set = pd.read_csv(self.barcode_file)
+        if self.btype == "helix":
+            v_set = structure_set.StructureSet(df_set, AddType.HELIX)
+        elif self.btype == "sstrand":
+            v_set = structure_set.StructureSet(df_set, self.add_type)
+        elif self.btype == "hairpin":
+            if self.loop is None:
+                log.error(
+                    "cannot generate a hairpin barcode without supplying loop"
+                    " sequence"
+                )
+                exit()
+            v_set = structure_set.HairpinStructureSet(
+                self.loop, df_set, self.add_type
             )
         else:
             log.error(f"{self.btype} is not a valid type")
@@ -127,6 +177,59 @@ class DoubleBarcode(Barcoder):
                 self.loop,
                 len(df) * 1.2,
                 AddType.RIGHT,
+            )
+            sets.extend([hp_set_1, hp_set_2])
+        else:
+            log.error(f"unknown type {self.btype}")
+            exit()
+        return self._barcode_w_sets(df, sets, design_opts)
+
+
+class CustomDoubleBarcode(Barcoder):
+    def __init__(self, btype, bfiles, loop):
+        super().__init__(btype)
+        self.bfiles = bfiles
+        self.loop = loop
+
+    def set_loop(self, loop: Structure):
+        self.loop = loop
+
+    def barcode(
+        self, df: pd.DataFrame, design_opts: DesignOptions
+    ) -> pd.DataFrame:
+        barcode_files = self.bfiles.split(",")
+        if len(barcode_files) > 2:
+            raise ValueError(
+                f"too many barcode files were supplied {barcode_files}"
+            )
+        barcode_file_1, barcode_file_2 = "", ""
+        if len(barcode_files) == 1:
+            barcode_file_1 = barcode_files[0]
+            barcode_file_2 = barcode_files[0]
+        else:
+            barcode_file_1 = barcode_files[0]
+            barcode_file_2 = barcode_files[1]
+        df_1 = pd.read_csv(barcode_file_1)
+        df_2 = pd.read_csv(barcode_file_2)
+        sets = []
+        if self.btype == "helix_hairpin":
+            h_set = structure_set.StructureSet(df_1, AddType.HELIX)
+            hp_set = structure_set.HairpinStructureSet(
+                self.loop, df_2, AddType.RIGHT
+            )
+            sets.extend([h_set, hp_set])
+        elif self.btype == "hairpin_helix":
+            h_set = structure_set.StructureSet(df_2, AddType.HELIX)
+            hp_set = structure_set.HairpinStructureSet(
+                self.loop, df_1, AddType.LEFT
+            )
+            sets.extend([h_set, hp_set])
+        elif self.btype == "hairpin_hairpin":
+            hp_set_1 = structure_set.HairpinStructureSet(
+                self.loop, df_1, AddType.LEFT
+            )
+            hp_set_2 = structure_set.HairpinStructureSet(
+                self.loop, df_1, AddType.RIGHT
             )
             sets.extend([hp_set_1, hp_set_2])
         else:

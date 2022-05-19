@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import List
 
 from seq_tools.sequence import convert_to_dna, get_reverse_complement
-from rna_lib_design import params, logger, settings
+from rna_lib_design import params, logger, settings, structure, structure_set
 
 log = logger.setup_applevel_logger()
 
@@ -93,11 +93,25 @@ def find_valid_rev_primers(seqs: List[str]) -> pd.DataFrame:
     return find_valid_subsequences(df, seqs)
 
 
+def get_p5_by_name(name: str):
+    p5_sequences = pd.read_csv(settings.RESOURCES_PATH + "/p5_sequences.csv")
+    row = p5_sequences[p5_sequences["name"] == name].iloc[0]
+    p5 = structure.rna_structure(row["sequence"], row["structure"])
+    return structure_set.get_single_struct_set(p5, structure_set.AddType.LEFT)
+
+
+def get_p3_by_name(name: str):
+    p3_sequences = pd.read_csv(settings.RESOURCES_PATH + "/p3_sequences.csv")
+    row = p3_sequences[p3_sequences["name"] == name].iloc[0]
+    p5 = structure.rna_structure(row["sequence"], row["structure"])
+    return structure_set.get_single_struct_set(p5, structure_set.AddType.RIGHT)
+
+
 def compute_edit_distance(df_result):
     scores = [100 for _ in range(len(df_result))]
     sequences = list(df_result["sequence"])
     for i, seq1 in enumerate(sequences):
-        #if i % 10 == 0:
+        # if i % 10 == 0:
         #    print(i)
         for j, seq2 in enumerate(sequences):
             if i >= j:
@@ -193,7 +207,7 @@ def random_helix(length, gu=0):
     for i in range(0, gu):
         bps.append(random_gu_basepair())
     for i in range(0, length - gu):
-        bps.append(random_basepair())
+        bps.append(random_wc_basepair())
     random.shuffle(bps)
     for bp in bps:
         seq_1 += bp[0]

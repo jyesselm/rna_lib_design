@@ -1,10 +1,19 @@
 import pandas as pd
 from enum import IntEnum
 from numpy import random
+import numpy as np
 
 from rna_lib_design import structure, settings, logger
 
 log = logger.setup_applevel_logger()
+
+
+def split_dataframe(df, chunk_size):
+    chunks = list()
+    num_chunks = len(df) // chunk_size + 1
+    for i in range(num_chunks):
+        chunks.append(df[i * chunk_size : (i + 1) * chunk_size])
+    return chunks
 
 
 class AddType(IntEnum):
@@ -32,7 +41,9 @@ def str_to_add_type(s: str) -> AddType:
 
 class StructureSet(object):
     def __init__(self, df, add_type):
-        self.df = df.sample(frac=1, random_state=random.seed()).reset_index(drop=True)
+        self.df = df.sample(frac=1, random_state=random.seed()).reset_index(
+            drop=True
+        )
         self.df["used"] = 0
         self.add_type = add_type
         self.current = -1
@@ -53,6 +64,12 @@ class StructureSet(object):
     def remove_dots(self):
         self.df = self.df[~self.df["ss_1"].str.contains("\.")]
         self.df = self.df.reset_index(drop=True)
+
+    def get_sequence_length(self):
+        if self.add_type == AddType.HELIX:
+            return len(self.get(0)[0])*2
+        else:
+            return len(self.get(0)[0])
 
     def get_random(self):
         while 1:
@@ -100,6 +117,13 @@ class StructureSet(object):
             else:
                 return s1 + structure.rna_structure_break() + s2
 
+    def split(self, n_splits):
+        dfs = np.array_split(self.df, n_splits)
+        struct_sets = []
+        for df in dfs:
+            struct_sets.append(StructureSet(df, self.add_type))
+        return struct_sets
+
 
 class HairpinStructureSet(object):
     def __init__(self, loop, df, add_type):
@@ -118,6 +142,12 @@ class HairpinStructureSet(object):
 
     def remove_dots(self):
         self.helices.remove_dots()
+
+    def get_sequence_length(self):
+        buffer_len = 0
+        if self.buffer is not None:
+            buffer_len = len(self.buffer)
+        return len(self.get(0)[0])+buffer_len
 
     def get(self, pos):
         s1, s2 = self.helices.get(pos)
@@ -157,6 +187,15 @@ class HairpinStructureSet(object):
         elif self.add_type == AddType.RIGHT:
             return struct + self.get(pos)[0]
 
+    def split(self, n_splits):
+        dfs = np.array_split(self.helices.df, n_splits)
+        struct_sets = []
+        for df in dfs:
+            struct_sets.append(
+                HairpinStructureSet(self.loop, df, self.add_type)
+            )
+        return struct_sets
+
 
 class SingleStructureSet(StructureSet):
     def __init__(self, df, add_type):
@@ -165,6 +204,13 @@ class SingleStructureSet(StructureSet):
     # redefine set_used() so it never uses up the one entry
     def set_used(self, pos=None):
         pass
+
+    # redefine split so it just creates copies instead of spliting
+    def split(self, n_splits):
+        structs_sets = []
+        for i in range(n_splits):
+            structs_sets.append(SingleStructureSet(self.df, self.add_type))
+        return structs_sets
 
 
 def get_single_struct_set(struct, add_type):
@@ -197,10 +243,13 @@ def get_optimal_helix_set(length, min_count=10):
         raise ValueError(f"no helices available with length {length}")
     df = df[df["size"] > min_count]
     df = df.sort_values(["diff"], ascending=False)
+    # diff = df.iloc[0]["diff"]
+    # df = df[df["diff"] == diff]
     if len(df) == 0:
         raise ValueError(
             f"no helices available with length {length} with max_count {min_count}"
         )
+    # np.random.shuffle(df)
     df_helix = pd.read_csv(
         settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
     )

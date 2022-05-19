@@ -1,4 +1,5 @@
 length,diff,gu,size,path
+1,0,0,4,helices/len_1/md_0_gu_0_0.csv
 2,0,0,36,helices/len_2/md_0_gu_0_0.csv
 2,1,0,36,helices/len_2/md_1_gu_0_0.csv
 2,2,0,16,helices/len_2/md_2_gu_0_0.csv
@@ -78,3 +79,4 @@ length,diff,gu,size,path
 8,11,1,10,helices/len_8/md_11_gu_1_0.csv
 8,11,2,10,helices/len_8/md_11_gu_2_0.csv
 8,11,3,10,helices/len_8/md_11_gu_3_0.csv
+8,4,1,11027,helices/len_8/md_4_gu_1_0.csv
