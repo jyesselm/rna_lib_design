@@ -7,7 +7,7 @@ from typing import Dict, Tuple, Optional
 from dataclasses import dataclass
 
 import vienna
-from seq_tools.data_frame import get_folded_structure, trim_3p, trim_5p
+from seq_tools import fold, trim
 
 from rna_lib_design import logger, settings, util
 from rna_lib_design.design import (
@@ -189,11 +189,11 @@ class CLIParser(object):
             log.error(f"csv must contain a `sequence` column")
             exit()
         if "structure" not in df:
-            get_folded_structure(df)
+            fold(df)
         if args["trim_5p"] > 0:
-            trim_5p(df, args["trim_5p"])
+            trim(df, args["trim_5p"], 0)
         if args["trim_3p"] > 0:
-            trim_3p(df, args["trim_3p"])
+            trim(df, 0, args["trim_3p"])
         return df
 
     @staticmethod
@@ -394,6 +394,7 @@ def cli():
         help="if barcode is a hairpin add it on the 5' of each sequence instead"
         " of the 3'",
     ),
+    cloup.option("-p", "--pooled", type=int, default=-1),
 )
 @csv_options
 @output_options
@@ -415,6 +416,7 @@ def barcode(**kwargs):
     bcoder.set_loop(cli_data.loop)
     bcoder.set_p5_buffer(cli_data.p5_buffer)
     bcoder.set_p3_buffer(cli_data.p3_buffer)
+    bcoder.multiprocess = kwargs["pooled"]
     df_result = bcoder.barcode(cli_data.df, cli_data.design_opts)
     output_results(df_result, kwargs)
 
@@ -439,6 +441,7 @@ def barcode(**kwargs):
         default=(6, 6),
         help="how long should the barcode be? (default=(6,6))",
     ),
+    cloup.option("-p", "--pooled", type=int, default=-1),
 )
 @csv_options
 @output_options
@@ -456,6 +459,7 @@ def barcode2(**kwargs):
     bcoder.set_p5_and_p3(cli_data.p5, cli_data.p3)
     bcoder.set_p5_buffer(cli_data.p5_buffer)
     bcoder.set_p3_buffer(cli_data.p3_buffer)
+    bcoder.multiprocess = kwargs["pooled"]
     df_result = bcoder.barcode(cli_data.df, cli_data.design_opts)
     output_results(df_result, kwargs)
 
@@ -650,6 +654,13 @@ def addcommon(**kwargs):
         cli_data.df, sets, cli_data.design_opts
     )
     output_results(df_result, kwargs)
+
+
+@cli.command()
+@cloup.argument("csv", type=cloup.Path(exists=True))
+def editdistance(csv):
+    df = pd.read_csv(csv)
+    print(util.compute_edit_distance(df))
 
 
 if __name__ == "__main__":

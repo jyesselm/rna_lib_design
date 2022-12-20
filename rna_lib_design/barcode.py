@@ -282,5 +282,5 @@ def output_results(df_result, kwargs):
     log.info(f"{diff} constructs were discarded as they were below cutoffs")
     util.compute_edit_distance(df_result)
     design.write_results_to_file(
-        df_result, f"{kwargs['name']}/results", kwargs["opool_name"]
+        df_result, f"{kwargs['name']}/results", kwargs["name"]
     )

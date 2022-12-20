@@ -5,7 +5,7 @@ import editdistance
 from dataclasses import dataclass
 from typing import List
 
-from seq_tools.sequence import convert_to_dna, get_reverse_complement
+from seq_tools.sequence import to_dna, get_reverse_complement
 from rna_lib_design import params, logger, settings, structure, structure_set
 
 log = logger.setup_applevel_logger()
@@ -29,7 +29,7 @@ def get_primer_dataframe(file_path: str) -> pd.DataFrame:
 def find_common_subsequence(
     common_seqs: pd.DataFrame, seqs: List[str]
 ) -> SequenceInfo:
-    seqs = [convert_to_dna(seq) for seq in seqs]
+    seqs = [to_dna(seq) for seq in seqs]
     saved_row = None
     for i, row in common_seqs.iterrows():
         fail = False
@@ -52,7 +52,7 @@ def find_common_subsequence(
 def find_valid_subsequences(
     common_seqs: pd.DataFrame, seqs: List[str]
 ) -> pd.DataFrame:
-    seqs = [convert_to_dna(seq) for seq in seqs]
+    seqs = [to_dna(seq) for seq in seqs]
     mask = [False for _ in range(len(common_seqs))]
     for i, row in common_seqs.iterrows():
         fail = False

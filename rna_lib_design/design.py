@@ -9,7 +9,7 @@ from typing import List, Dict
 import rna_library as rl
 
 import vienna
-from seq_tools.data_frame import convert_to_dna
+from seq_tools import to_dna
 from rna_lib_design import structure_set, logger, structure, util
 from rna_lib_design.structure import rna_structure
 
@@ -128,11 +128,10 @@ def write_results_to_file(
     log.info(
         f"{fname}-rna.csv contains only information related to the RNA sequence"
     )
-    df_sub = df[["name", "sequence", "structure", "ens_defect"]]
     df_sub.to_csv(f"{fname}-rna.csv", index=False)
 
     df_sub = df[["name", "sequence"]].copy()
-    convert_to_dna(df_sub)
+    df_sub = to_dna(df_sub)
     f = open(f"{fname}.fasta", "w")
     for i, row in df_sub.iterrows():
         f.write(f">{row['name']}\n{row['sequence']}\n")
@@ -254,3 +253,6 @@ class HelixRandomizer(object):
         else:
             return DesignResults(best, rna_structure(best_seq, structure))
 
+
+def replace_junction(df, seq, ss):
+    pass
