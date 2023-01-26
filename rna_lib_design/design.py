@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Dict
-import rna_library as rl
+import rna_secstruct as rl
 
 import vienna
 from seq_tools import to_dna
@@ -128,8 +128,7 @@ def write_results_to_file(
     log.info(
         f"{fname}-rna.csv contains only information related to the RNA sequence"
     )
-    df_sub.to_csv(f"{fname}-rna.csv", index=False)
-
+    df.to_csv(f"{fname}-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
     f = open(f"{fname}.fasta", "w")
@@ -175,7 +174,7 @@ class HelixRandomizer(object):
 
     def __randomize_helix(self, h, exclude):
         for i in range(100):
-            org_seq = h.sequence().split("&")
+            org_seq = h.sequence.split("&")
             org_s = util.compute_stretches(org_seq[0], org_seq[1])
             seq1, seq2 = self.__generate_helix_sequence(h, exclude)
             new_s = util.compute_stretches(seq1, seq2)
@@ -205,7 +204,7 @@ class HelixRandomizer(object):
     def __generate_helix_sequence(self, h, exclude):
         if exclude is None:
             exclude = []
-        strand1, strand2 = h.strands()
+        strand1, strand2 = h.strands
         seq1, seq2 = "", ""
         for i, (s1, s2) in enumerate(zip(strand1, strand2[::-1])):
             # dont change end pairs
@@ -233,15 +232,15 @@ class HelixRandomizer(object):
                     exclude.extend(list(range(pos, pos + len(es) + 1)))
         # log.debug("final excluded: " + str(exclude))
         self.sequence, self.structure = sequence, structure
-        s = rl.SecStruct(structure, sequence)
+        s = rl.SecStruct(sequence, structure)
         best = 1000
         best_seq = ""
         for _ in range(100):
-            for i, h in s.itermotifs():
+            for h in s:
                 if not h.is_helix():
                     continue
                 new_seq = self.__randomize_helix(h, exclude)
-                s.change_motif(i, h.structure(), new_seq)
+                s.change_motif(h.m_id, new_seq, h.structure)
             r = vienna.fold(s.sequence)
             if r.dot_bracket != structure:
                 continue

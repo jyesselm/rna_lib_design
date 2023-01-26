@@ -8,3 +8,4 @@ pyyaml
 # written by our group
 vienna
 rna_seq_tools
+rna_secstruct @ git+https://github.com/jyesselm/rna_secstruct@main
