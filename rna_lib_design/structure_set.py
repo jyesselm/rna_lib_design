@@ -3,9 +3,11 @@ from enum import IntEnum
 from numpy import random
 import numpy as np
 
-from rna_lib_design import structure, settings, logger
+from seq_tools import SequenceStructure
+from rna_lib_design import settings
+from rna_lib_design.logger import get_logger
 
-log = logger.setup_applevel_logger()
+log = get_logger('STRUCTURE-SET')
 
 
 def split_dataframe(df, chunk_size):

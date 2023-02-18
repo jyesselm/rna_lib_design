@@ -29,6 +29,7 @@ def test_design_2():
     )
     assert sol.ens_defect < 1.0
 
+
 def test_randomize_helices():
     seq = "GAGCCUAUGGCUGCCACCCGAGCCCUUGAACUACAGGGAACACUGGAAACAGUACCCCCUGCAAGGGCGUUUGACGGUGGCAGCCUAAGGGCUC"
     ss = "((((((..((((((((((((((((((((.....(((((...((((....))))...))))))))))))..)))..))))))))))...))))))"
@@ -37,5 +38,4 @@ def test_randomize_helices():
     rh = design.HelixRandomizer()
     r = rh.run(seq, ss, exclude_seqs=exclude_seqs)
     print(r)
-    #design.randomize_helices(seq, ss, exclude)
-
+    # design.randomize_helices(seq, ss, exclude)

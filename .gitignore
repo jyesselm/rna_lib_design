@@ -2,6 +2,8 @@
 .idea
 *.ps
 __pycache__
+build/
+dist/
 
 # C extensions
 *.so

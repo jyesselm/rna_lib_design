@@ -11,7 +11,6 @@ from rna_lib_design.design import (
 )
 from rna_lib_design import logger, structure_set, util, design
 from rna_lib_design.structure_set import StructureSet, AddType
-from rna_lib_design.structure import rna_structure, Structure
 
 log = logger.setup_applevel_logger()
 

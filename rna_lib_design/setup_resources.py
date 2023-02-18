@@ -10,9 +10,10 @@ from rna_lib_design.util import (
     hamming,
     random_helix,
 )
-from rna_lib_design import logger, structure_set, params, structure
+from rna_lib_design import structure_set, params
+from rna_lib_design.logger import get_logger, setup_applevel_logger
 
-log = logger.setup_applevel_logger()
+log = get_logger(__name__)
 
 
 def generate_helix_barcodes(length, min_distance, gus, max_num=100000):
@@ -135,7 +136,7 @@ def __check_folds(sx_struct, sy_struct, h_set, hp_set, n=100, just_list=False):
             total += 1
     return total
 
-
+"""
 @cli.command()
 @click.argument("sx", type=int)
 @click.argument("sy", type=int)
@@ -180,6 +181,7 @@ def twoways(sx, sy, just_list):
     df = pd.DataFrame(data, columns="seq_1,seq_2,ss_1,ss_2,score".split(","))
     print(df)
     df.to_csv("out.csv")
+"""
 
 
 if __name__ == "__main__":
