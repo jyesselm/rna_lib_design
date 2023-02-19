@@ -1,5 +1,5 @@
-seq_1,seq_2,ss_1,ss_2,dg
-A,U,(,),0
-U,A,(,),0
-G,C,(,),0
-C,G,(,),0
+sequence,structure,dg
+A&U,(&),0
+U&A,(&),0
+G&C,(&),0
+C&G,(&),0

@@ -1,0 +1,11 @@
+H1:
+  m_type: "HELIX"
+  gu: True
+  length: 5
+AC:
+  sequence: "AC"
+  structure: ".."
+P5:
+  name: "large_bulge_jcts_rev_p5"
+P3:
+  name: "tail"
