@@ -1,292 +1,316 @@
+from typing import List, Dict
+import re
 import pandas as pd
-from enum import IntEnum
 from numpy import random
-import numpy as np
 
 from seq_tools import SequenceStructure
-from rna_lib_design import settings
+
 from rna_lib_design.logger import get_logger
+from rna_lib_design.settings import get_resources_path
 
-log = get_logger('STRUCTURE-SET')
-
-
-def split_dataframe(df, chunk_size):
-    chunks = list()
-    num_chunks = len(df) // chunk_size + 1
-    for i in range(num_chunks):
-        chunks.append(df[i * chunk_size : (i + 1) * chunk_size])
-    return chunks
+log = get_logger(__file__)
 
 
-class AddType(IntEnum):
-    HELIX = 0
-    LEFT = 1
-    RIGHT = 2
+def str_to_range(x):
+    """
+    Convert a string representation of a range of numbers to a list of integers.
 
-    def to_str(self):
-        names = ("HELIX", "LEFT", "RIGHT")
-        return names[int(self)]
+    Given a string representation of a range of numbers, this function returns a
+    list of integers corresponding to the numbers in the range. The string can
+    contain single numbers separated by commas, and ranges of numbers separated by
+    a hyphen.
 
-
-def str_to_add_type(s: str) -> AddType:
-    s = s.upper()
-    if s == "HELIX":
-        return AddType.HELIX
-    elif s == "LEFT":
-        return AddType.LEFT
-    elif s == "RIGHT":
-        return AddType.RIGHT
-    else:
-        log.error(f"invalid AddType: {s}")
-        exit()
-
-
-class StructureSet(object):
-    def __init__(self, df, add_type):
-        self.df = df.sample(frac=1, random_state=random.seed()).reset_index(
-            drop=True
-        )
-        self.df["used"] = 0
-        self.add_type = add_type
-        self.current = -1
-
-    def __len__(self):
-        return len(self.df)
-
-    def __get_return(self, pos):
-        row = self.df.loc[pos]
-        if self.add_type != AddType.HELIX:
-            return [structure.Structure(row["seq"], row["ss"])]
-        else:
-            return [
-                structure.Structure(row["seq_1"], row["ss_1"]),
-                structure.Structure(row["seq_2"], row["ss_2"]),
-            ]
-
-    def remove_dots(self):
-        self.df = self.df[~self.df["ss_1"].str.contains("\.")]
-        self.df = self.df.reset_index(drop=True)
-
-    def get_sequence_length(self):
-        if self.add_type == AddType.HELIX:
-            return len(self.get(0)[0])*2
-        else:
-            return len(self.get(0)[0])
-
-    def get_random(self):
-        while 1:
-            df = self.df.sample()
-            row = df.iloc[0]
-            i = df.index[0]
-            if row["used"] != 0:
-                continue
-            self.current = i
-            return self.__get_return(i)
-
-    def get(self, pos):
-        return self.__get_return(pos)
-
-    def get_current_pos(self):
-        return self.current
-
-    def set_used(self, pos=None):
-        if pos is None:
-            self.df.at[self.current, "used"] = 1
-        else:
-            self.df.at[pos, "used"] = 1
-
-    def apply_random(self, struct) -> structure.Structure:
-        if self.add_type == AddType.LEFT:
-            return self.get_random()[0] + struct
-        elif self.add_type == AddType.RIGHT:
-            return struct + self.get_random()[0]
-        elif self.add_type == AddType.HELIX:
-            s1, s2 = self.get_random()
-            if len(struct) > 0:
-                return s1 + struct + s2
-            else:
-                return s1 + structure.rna_structure_break() + s2
-
-    def apply(self, struct, pos) -> structure.Structure:
-        if self.add_type == AddType.LEFT:
-            return self.get(pos)[0] + struct
-        elif self.add_type == AddType.RIGHT:
-            return struct + self.get(pos)[0]
-        elif self.add_type == AddType.HELIX:
-            s1, s2 = self.get(pos)
-            if len(struct) > 0:
-                return s1 + struct + s2
-            else:
-                return s1 + structure.rna_structure_break() + s2
-
-    def split(self, n_splits):
-        dfs = np.array_split(self.df, n_splits)
-        struct_sets = []
-        for df in dfs:
-            struct_sets.append(StructureSet(df, self.add_type))
-        return struct_sets
-
-
-class HairpinStructureSet(object):
-    def __init__(self, loop, df, add_type):
-        if not (add_type == AddType.LEFT or add_type == AddType.RIGHT):
-            raise ValueError(f"incorrect type {add_type}")
-        self.add_type = add_type
-        self.loop = loop
-        self.helices = StructureSet(df, AddType.HELIX)
-        self.buffer = structure.rna_structure_unpaired("AAA")
-
-    def __len__(self):
-        return len(self.helices)
-
-    def set_buffer(self, struct):
-        self.buffer = struct
-
-    def remove_dots(self):
-        self.helices.remove_dots()
-
-    def get_sequence_length(self):
-        buffer_len = 0
-        if self.buffer is not None:
-            buffer_len = len(self.buffer)
-        return len(self.get(0)[0])+buffer_len
-
-    def get(self, pos):
-        s1, s2 = self.helices.get(pos)
-        if self.buffer is not None:
-            if self.add_type == AddType.LEFT:
-                return [s1 + self.loop + s2 + self.buffer]
-            else:
-                return [self.buffer + s1 + self.loop + s2]
-        else:
-            return [s1 + self.loop + s2]
-
-    def get_current_pos(self):
-        return self.helices.get_current_pos()
-
-    def get_random(self):
-        s1, s2 = self.helices.get_random()
-        if self.buffer is not None:
-            if self.add_type == AddType.LEFT:
-                return [s1 + self.loop + s2 + self.buffer]
-            else:
-                return [self.buffer + s1 + self.loop + s2]
-        else:
-            return [s1 + self.loop + s2]
-
-    def set_used(self, pos=None):
-        self.helices.set_used(pos)
-
-    def apply_random(self, struct) -> structure.Structure:
-        if self.add_type == AddType.LEFT:
-            return self.get_random()[0] + struct
-        elif self.add_type == AddType.RIGHT:
-            return struct + self.get_random()[0]
-
-    def apply(self, struct, pos) -> structure.Structure:
-        if self.add_type == AddType.LEFT:
-            return self.get(pos)[0] + struct
-        elif self.add_type == AddType.RIGHT:
-            return struct + self.get(pos)[0]
-
-    def split(self, n_splits):
-        dfs = np.array_split(self.helices.df, n_splits)
-        struct_sets = []
-        for df in dfs:
-            struct_sets.append(
-                HairpinStructureSet(self.loop, df, self.add_type)
+    :param x: A string representation of a range of numbers.
+    :return: A list of integers corresponding to the numbers in the range.
+    """
+    return sum(
+        (
+            i if len(i) == 1 else list(range(i[0], i[1] + 1))
+            for i in (
+                [int(j) for j in i if j]
+                for i in re.findall(r"(\d+),?(?:-(\d+))?", x)
             )
-        return struct_sets
+        ),
+        [],
+    )
 
 
-class SingleStructureSet(StructureSet):
-    def __init__(self, df, add_type):
-        super().__init__(df, add_type)
+class SequenceStructureSet:
+    """
+    A set of SequenceStructures that can be used to build up
+    new sequences.
+    """
 
-    # redefine set_used() so it never uses up the one entry
-    def set_used(self, pos=None):
+    def __init__(self, seqstructs: List[SequenceStructure]):
+        self.seqstructs = seqstructs
+        self.used = [False] * len(seqstructs)
+        self.allow_duplicates = False
+        self.last = None
+
+    @classmethod
+    def from_csv(cls, csv_path: str):
+        """
+        Creates a SequenceStructureSet from a csv file.
+        """
+        df = pd.read_csv(csv_path)
+        seqstructs = []
+        for index, row in df.iterrows():
+            seqstructs.append(
+                SequenceStructure(row["sequence"], row["structure"])
+            )
+        return cls(seqstructs)
+
+    @classmethod
+    def from_single(cls, seqstruct: SequenceStructure):
+        """
+        Creates a SequenceStructureSet from a single SequenceStructure.
+        """
+        sss = cls([seqstruct])
+        sss.allow_duplicates = True
+        return sss
+
+    def __len__(self):
+        return len(self.seqstructs)
+
+    def __add__(self, other):
+        seq_struct_set = SequenceStructureSet(
+            self.seqstructs + other.seqstructs
+        )
+        seq_struct_set.used = self.used + other.used
+        return seq_struct_set
+
+    def get_random(self) -> SequenceStructure:
+        if all(self.used):
+            raise Exception("All SequenceStructures have been used.")
+        if len(self.seqstructs) == 1:
+            return self.seqstructs[0]
+        while True:
+            index = random.randint(0, len(self.seqstructs) - 1)
+            if not self.used[index]:
+                self.last = index
+                return self.seqstructs[index]
+
+    def set_used(self, sec_struct) -> None:
+        index = self.seqstructs.index(sec_struct)
+        if not self.allow_duplicates:
+            self.used[index] = True
+
+    def set_last_used(self) -> None:
+        if self.last is not None:
+            self.used[self.last] = True
+
+
+class SequenceStructureSetParser:
+    def __init__(self):
         pass
 
-    # redefine split so it just creates copies instead of spliting
-    def split(self, n_splits):
-        structs_sets = []
-        for i in range(n_splits):
-            structs_sets.append(SingleStructureSet(self.df, self.add_type))
-        return structs_sets
+    def parse(
+        self, num_seqs: int, params: Dict
+    ) -> Dict[str, SequenceStructureSet]:
+        """
+        Parses a dictionary of parameters into a dictionary of SequenceStructureSets.
+        The name of the each dictionary key is the name of the SequenceStructureSet.
+        :param num_seqs: The number of sequences of interest
+        :param params: A dictionary of parameters
+        :return: A dictionary of SequenceStructureSets
+        """
+        set_dict = {}
+        for name, params in params.items():
+            set_dict[name] = self.__parse_entry(num_seqs, name, params)
+        return set_dict
+
+    # TODO add other types of entries. Can do from a csv? Or list of sequences and
+    # TODO and structures?
+    def __parse_entry(
+        self, num_seqs: int, name: str, params: Dict
+    ) -> SequenceStructureSet:
+        """
+        Parses a single entry in the params dictionary.
+        """
+        if "m_type" in params:
+            return self.__parse_by_type(num_seqs, name, params)
+        elif "sequence" in params and "structure" in params:
+            seq_struct = SequenceStructure(
+                params["sequence"], params["structure"]
+            )
+            return SequenceStructureSet.from_single(seq_struct)
+        elif "name" in params:
+            seq_struct = get_common_seq_struct(params["name"])
+            return SequenceStructureSet.from_single(seq_struct)
+        else:
+            raise ValueError(
+                "sequence and structure or name must be specified or m_type"
+            )
+
+    def __parse_by_type(
+        self, num_seqs, name, params: Dict
+    ) -> SequenceStructureSet:
+
+        m_type = params["m_type"].upper()
+        if "length" not in params:
+            raise ValueError("length must be specified with m_type")
+        lengths = str_to_range(str(params["length"]))
+        if m_type == "HELIX":
+            return self.__parse_helix_type(name, num_seqs, lengths, params)
+        elif m_type == "SSTRAND":
+            return self.__parse_sstrand_type(name, num_seqs, lengths, params)
+        elif m_type == "HAIRPIN":
+            return self.__parse_hairpin_type(name, num_seqs, lengths, params)
+
+    def __parse_helix_type(
+        self, name, num_seqs, lengths, params: Dict
+    ) -> SequenceStructureSet:
+        log.info(f"{name} structure type is helix")
+        gu = True
+        if "gu" in params:
+            gu = params["gu"]
+        sets = None
+        for length in lengths:
+            if sets is None:
+                sets = get_optimal_helix_set(length, num_seqs, gu=gu)
+            else:
+                sets = sets + get_optimal_helix_set(length, num_seqs, gu=gu)
+        log.info(f"{name} has {len(sets)} helix structures")
+        return sets
+
+    def __parse_sstrand_type(
+        self, name, num_seqs, lengths, params: Dict
+    ) -> SequenceStructureSet:
+        log.info(f"{name} structure type is sstrand")
+        sets = SequenceStructureSet([])
+        for length in lengths:
+            if sets is None:
+                sets = get_optimal_sstrand_set(length, num_seqs)
+            else:
+                sets = sets + get_optimal_sstrand_set(length, num_seqs)
+        log.info(f"{name} has {len(sets)} sstrand structures")
+        return sets
+
+    def __parse_hairpin_type(
+        self, name, num_seqs, lengths, params: Dict
+    ) -> SequenceStructureSet:
+        log.info(f"{name} structure type is hairpin")
+        if "sequence" in params and "structure" in params:
+            seq_struct = SequenceStructure(
+                params["sequence"], params["structure"]
+            )
+        elif "name" in params:
+            seq_struct = get_common_seq_struct(params["name"])
+        else:
+            raise ValueError("sequence and structure or name must be specified")
+        buffer_5p = SequenceStructure("", "")
+        buffer_3p = SequenceStructure("AAA", "...")
+        if "buffer_5p_seq" in params:
+            seq = params["buffer_5p_seq"]
+            if "buffer_5p_struct" in params:
+                struct = params["buffer_5p_struct"]
+            else:
+                struct = "." * len(seq)
+            buffer_5p = SequenceStructure(seq, struct)
+        if "buffer_3p_seq" in params:
+            seq = params["buffer_3p_seq"]
+            if "buffer_3p_struct" in params:
+                struct = params["buffer_3p_struct"]
+            else:
+                struct = "." * len(seq)
+            buffer_3p = SequenceStructure(seq, struct)
+        gu = True
+        if "gu" in params:
+            gu = params["gu"]
+        sets = SequenceStructureSet([])
+        for length in lengths:
+            if sets is None:
+                sets = get_optimal_hairpin_set(
+                    seq_struct,
+                    length,
+                    num_seqs,
+                    gu=gu,
+                    buffer_5p=buffer_5p,
+                    buffer_3p=buffer_3p,
+                )
+            else:
+                sets = sets + get_optimal_hairpin_set(
+                    seq_struct,
+                    length,
+                    num_seqs,
+                    gu=gu,
+                    buffer_5p=buffer_5p,
+                    buffer_3p=buffer_3p,
+                )
+        log.info(f"{name} has {len(sets)} hairpin structures")
+        return sets
 
 
-def get_single_struct_set(struct, add_type):
-    if isinstance(struct, structure.Structure):
-        df = pd.DataFrame(columns="seq ss".split())
-        df.loc[0] = [str(struct.sequence), str(struct.dot_bracket)]
-    else:
-        df = pd.DataFrame(columns="seq1 seq2 ss1 ss2".split())
-        df.loc[0] = [
-            str(struct[0].sequence),
-            str(struct[1].sequence),
-            str(struct[0].dot_bracket),
-            str(struct[1].dot_bracket),
-        ]
-    return SingleStructureSet(df, add_type)
+# get sets from csv files #############################################################
 
 
-def apply(struct_sets, struct):
-    temp_struct = struct
-    for sd in list(struct_sets):
-        temp_struct = sd.apply_random(temp_struct)
-    return temp_struct
-
-
-def get_optimal_helix_set(length, min_count=10):
-    fname = settings.RESOURCES_PATH + "/barcodes/helices.csv"
-    df = pd.read_csv(fname)
+def get_optimal_set(path, length, min_count, **kwargs) -> str:
+    df = pd.read_csv(path)
     df = df[df["length"] == length]
     if len(df) == 0:
-        raise ValueError(f"no helices available with length {length}")
+        raise ValueError(f"no available with length {length} in {path}")
     df = df[df["size"] > min_count]
     df = df.sort_values(["diff"], ascending=False)
-    # diff = df.iloc[0]["diff"]
-    # df = df[df["diff"] == diff]
+    if "gu" in kwargs and not kwargs["gu"]:
+        df = df[df["gu"] == 0]
     if len(df) == 0:
         raise ValueError(
-            f"no helices available with length {length} with max_count {min_count}"
+            f"no set available with length {length} with max_count {min_count}"
         )
-    # np.random.shuffle(df)
-    df_helix = pd.read_csv(
-        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
+    return df.iloc[0]["path"]
+
+
+def get_optimal_helix_set(length, min_count, gu=True):
+    fname = get_resources_path() / "barcodes/helices.csv"
+    csv_path = get_optimal_set(fname, length, min_count, gu=gu)
+    return SequenceStructureSet.from_csv(
+        get_resources_path() / "barcodes" / csv_path
     )
-    return StructureSet(df_helix, AddType.HELIX)
+
+
+def get_optimal_sstrand_set(length, min_count):
+    fname = get_resources_path() / "barcodes/sstrand.csv"
+    csv_path = get_optimal_set(fname, length, min_count)
+    return SequenceStructureSet.from_csv(
+        get_resources_path() / "barcodes" / csv_path
+    )
 
 
 def get_optimal_hairpin_set(
-    length, loop_struct, min_count=10, type=AddType.LEFT
+    seq_struct, length, min_count, gu=True, buffer_5p=None, buffer_3p=None
 ):
-    h_df = get_optimal_helix_set(length, min_count).df
-    return HairpinStructureSet(loop_struct, h_df, type)
-
-
-def get_optimal_sstrand_set(length, min_count=10, type=AddType.LEFT):
-    fname = settings.RESOURCES_PATH + "/barcodes/sstrand.csv"
-    df = pd.read_csv(fname)
-    df = df[df["length"] == length]
-    if len(df) == 0:
-        raise ValueError(f"no sstrand available with length {length}")
-    df = df[df["size"] > min_count]
-    df = df.sort_values(["diff"], ascending=False)
-    if len(df) == 0:
-        raise ValueError(
-            f"no sstrand available with length {length} with max_count {min_count}"
+    if buffer_5p is None:
+        buffer_5p = SequenceStructure("", "")
+    if buffer_3p is None:
+        buffer_3p = SequenceStructure("", "")
+    fname = get_resources_path() / "barcodes/helices.csv"
+    csv_path = get_optimal_set(fname, length, min_count, gu=gu)
+    df = pd.read_csv(get_resources_path() / "barcodes" / csv_path)
+    seqstructs = []
+    for index, row in df.iterrows():
+        h_seq_struct = SequenceStructure(row["sequence"], row["structure"])
+        h_seq_structs = h_seq_struct.split_strands()
+        seqstructs.append(
+            buffer_5p
+            + h_seq_structs[0]
+            + seq_struct
+            + h_seq_structs[1]
+            + buffer_3p
         )
-    df_ss = pd.read_csv(
-        settings.RESOURCES_PATH + "barcodes/" + df.iloc[0]["path"]
-    )
-    return StructureSet(df_ss, type)
+    return SequenceStructureSet(seqstructs)
 
 
-def get_common_seq_structure_set(name, type=AddType.LEFT):
-    struct = structure.get_common_struct(name)
-    return get_single_struct_set(struct, type)
+# get seq_structs from dataframes #####################################################
 
 
-def get_tail_structure_set():
-    return get_common_seq_structure_set("rt_tail", AddType.RIGHT)
+def get_common_seq_structs():
+    fname = get_resources_path() / "common_seqs.csv"
+    return pd.read_csv(fname)
+
+
+def get_common_seq_struct(name):
+    df = get_common_seq_structs()
+    df = df[df["name"] == name]
+    if len(df) == 0:
+        raise ValueError(f"no sequence structure with name {name}")
+    return SequenceStructure(df.iloc[0]["sequence"], df.iloc[0]["structure"])

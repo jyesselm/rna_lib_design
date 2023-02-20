@@ -1,39 +1,16 @@
 from typing import List
 import random
 import re
-
-from seq_tools import SequenceStructure
 import pandas as pd
 
+from seq_tools import SequenceStructure
+from vienna import fold
+
+from rna_lib_design.structure_set import SequenceStructureSet
 from rna_lib_design.settings import get_resources_path
 from rna_lib_design.logger import get_logger
 
 log = get_logger(__file__)
-
-
-def str_to_range(x):
-    """
-    Convert a string representation of a range of numbers to a list of integers.
-
-    Given a string representation of a range of numbers, this function returns a
-    list of integers corresponding to the numbers in the range. The string can
-    contain single numbers separated by commas, and ranges of numbers separated by
-    a hyphen.
-
-    :param x: A string representation of a range of numbers.
-    :return: A list of integers corresponding to the numbers in the range.
-    """
-    return sum(
-        (
-            i if len(i) == 1 else list(range(i[0], i[1] + 1))
-            for i in (
-                [int(j) for j in i if j]
-                for i in re.findall(r"(\d+),?(?:-(\d+))?", x)
-            )
-        ),
-        [],
-    )
-
 
 def generate_helix(length, symbol):
     seq = symbol * length
@@ -79,136 +56,137 @@ def parse_sequence_string(seq_str):
     return order
 
 
-class SequenceStructureSet:
-    """
-    A set of SequenceStructures that can be used to build up
-    new sequences.
-    """
-
-    def __init__(self, seqstructs: List[SequenceStructure]):
-        self.seqstructs = seqstructs
-        self.used = [False] * len(seqstructs)
-        self.allow_duplicates = False
-        self.last = None
-
-    @classmethod
-    def from_csv(cls, csv_path: str):
-        """
-        Creates a SequenceStructureSet from a csv file.
-        """
-        df = pd.read_csv(csv_path)
-        seqstructs = []
-        for index, row in df.iterrows():
-            seqstructs.append(
-                SequenceStructure(row["sequence"], row["structure"])
-            )
-        return cls(seqstructs)
-
-    @classmethod
-    def from_single(cls, seqstruct: SequenceStructure):
-        """
-        Creates a SequenceStructureSet from a single SequenceStructure.
-        """
-        sss = cls([seqstruct])
-        sss.allow_duplicates = True
-        return sss
-
-    def __len__(self):
-        return len(self.seqstructs)
-
-    def __add__(self, other):
-        seq_struct_set = SequenceStructureSet(
-            self.seqstructs + other.seqstructs
-        )
-        seq_struct_set.used = self.used + other.used
-        return seq_struct_set
-
-    def get_random(self) -> SequenceStructure:
-        if all(self.used):
-            raise Exception("All SequenceStructures have been used.")
-        while True:
-            index = random.randint(0, len(self.seqstructs) - 1)
-            if not self.used[index]:
-                self.last = index
-                return self.seqstructs[index]
-
-    def set_used(self, sec_struct) -> None:
-        index = self.seqstructs.index(sec_struct)
-        if not self.allow_duplicates:
-            self.used[index] = True
-
-    def set_last_used(self) -> None:
-        if self.last is not None:
-            self.used[self.last] = True
+def parse_sequence_structure_sets(num_seqs, params):
+    sets = {}
+    for key, value in params.items():
+        sets[key] = sequence_structure_set_from_params(num_seqs, value)
+    return sets
 
 
-def sequence_structure_set_from_params(num_seqs, params: List[str]):
-    """
-    Creates a SequenceStructureSet from a list of parameters.
-    """
-    if "m_type" in params:
-        log.info(f"structure type is helix")
-        m_type = params["m_type"].upper()
-        if "length" not in params:
-            raise ValueError("length must be specifiied with m_type")
-        lengths = str_to_range(str(params["length"]))
-        if m_type == "HELIX":
-            gu = True
-            if "gu" in params:
-                gu = params["gu"]
-            sets = None
-            for length in lengths:
-                if sets is None:
-                    sets = get_optimal_helix_set(length, num_seqs, gu=gu)
-                else:
-                    sets = sets + get_optimal_helix_set(length, num_seqs, gu=gu)
-            return sets
-        elif m_type == "SSTRAND":
-            sets = None
-            for length in lengths:
-                if sets is None:
-                    sets = get_optimal_sstrand_set(length, num_seqs)
-                else:
-                    sets = sets + get_optimal_sstrand_set(length, num_seqs)
-        elif m_type == "HAIRPIN":
-            pass
+def get_design_setup(num_seqs, build_str, params):
+    sets = parse_sequence_structure_sets(num_seqs, params)
+    segments = parse_sequence_string(build_str)
+    pos = 1
+    seen = []
+    build_up = []
+    while True:
+        found = False
+        for seg_name, seg_pos in segments.items():
+            if pos != abs(seg_pos):
+                continue
+            if seg_name in seen:
+                continue
+            if seg_name not in sets:
+                raise ValueError(f"no set for {seg_name}")
+            found = True
+            seen.append(seg_name)
+            direction = "3PRIME"
+            if seg_pos < 0:
+                direction = "5PRIME"
+            cur_set = sets[seg_name]
+            # hacky way to check if helix
+            if cur_set.get_random().sequence.count("&") > 0:
+                direction = "HELIX"
+            build_up.append((direction, seg_name, cur_set))
+        if not found:
+            pos += 1
+        if len(seen) == len(segments):
+            break
+
+    return build_up
+
+
+def design(soi_seq_struct, build_up):
+    # build up template seq_struct
+    symbols = [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "0",
+        "*",
+        "#",
+        "$",
+        "%",
+        "^",
+        "*",
+        "B",
+        "D",
+        "F",
+    ]
+    seq_struct = soi_seq_struct
+    iterating_sets = []
+    for direction, seg_name, cur_set in build_up:
+        symbol = symbols.pop(0)
+        if direction == "HELIX":
+            if len(cur_set) > 1:
+                length = len(cur_set.get_random().split_strands()[0])
+                seq = symbol * length + "&" + symbol * length
+                h_seq_struct = SequenceStructure(seq, seq).split_strands()
+                seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
+                iterating_sets.append(
+                    [[symbol * length, symbol * length], cur_set]
+                )
+            else:
+                h_seq_struct = cur_set.get_random().split_strands()
+                seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
+        elif direction == "5PRIME":
+            if len(cur_set) > 1:
+                seq = symbol * len(cur_set.get_random())
+                seq_struct = SequenceStructure(seq, seq) + seq_struct
+                iterating_sets.append([[seq], cur_set])
+            else:
+                seq_struct = cur_set.get_random() + seq_struct
+        elif direction == "3PRIME":
+            if len(cur_set) > 1:
+                seq = symbol * len(cur_set.get_random())
+                seq_struct = seq_struct + SequenceStructure(seq, seq)
+                iterating_sets.append([[seq], cur_set])
+            else:
+                seq_struct = seq_struct + cur_set.get_random()
         else:
-            raise ValueError(f"unknown structure type {m_type}")
+            raise ValueError(f"unknown direction {direction}")
+
+    attempts = 10
+    best = []
+    best_seq = ""
+    best_ens_defect = 9999
+    for i in range(0, attempts):
+        sequence = seq_struct.sequence
+        structure = seq_struct.structure
+        used = []
+        for replace_str, cur_set in iterating_sets:
+            sol = cur_set.get_random()
+            used.append(sol)
+            strands = sol.split_strands()
+            for rs, strand in zip(replace_str, strands):
+                sequence = sequence.replace(rs, strand.sequence, 1)
+                structure = structure.replace(rs, strand.structure, 1)
+        r = fold(sequence)
+        success = False
+        if r.dot_bracket == structure:
+            success = True
+        if not success:
+            # TODO should put in some logic here to not be too strict about barcode structure
+            continue
+        if r.ens_defect < best_ens_defect:
+            best_ens_defect = r.ens_defect
+            best_seq = sequence
+            best = used
+    if len(best) != 0:
+        for sol, sss in zip(best, iterating_sets):
+            sss[1].set_used(sol)
+    print(best_seq)
+    print(best_ens_defect)
+
 
 
 # get sets from csv files #############################################################
-
-
-def get_optimal_set(path, length, min_count, **kwargs) -> str:
-    df = pd.read_csv(path)
-    df = df[df["length"] == length]
-    if len(df) == 0:
-        raise ValueError(f"no available with length {length} in {path}")
-    df = df[df["size"] > min_count]
-    df = df.sort_values(["diff"], ascending=False)
-    if "gu" in kwargs and kwargs["gu"] == False:
-        df = df[df["gu"] == 0]
-    if len(df) == 0:
-        raise ValueError(
-            f"no set available with length {length} with max_count {min_count}"
-        )
-    return df.iloc[0]["path"]
-
-
-def get_optimal_helix_set(length, min_count, gu=True):
-    fname = get_resources_path() / "barcodes/helices.csv"
-    csv_path = get_optimal_set(fname, length, min_count, gu=gu)
-    return SequenceStructureSet.from_csv(
-        get_resources_path() / "barcodes" / csv_path
-    )
-
-
-def get_optimal_sstrand_set(length, min_count):
-    fname = get_resources_path() / "barcodes/sstrands.csv"
-    csv_path = get_optimal_set(fname, length, min_count)
-    return SequenceStructureSet.from_csv(
-        get_resources_path() / "barcodes" / csv_path
-    )
 
 
 """ 

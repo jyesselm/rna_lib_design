@@ -1,6 +1,9 @@
 from seq_tools import SequenceStructure
 from rna_lib_design.mockup import (
+    get_design_setup,
+    design,
     parse_sequence_string,
+    parse_sequence_structure_sets,
     sequence_structure_set_from_params,
     SequenceStructureSet,
 )
@@ -45,63 +48,61 @@ class TestParseSequenceString:
         assert parse_sequence_string(seq_str) == expected_order
 
 
-class TestSequenceStructureSet:
-    def test_init(self):
-        ss1 = SequenceStructure("ATCG", "((((")
-        ss2 = SequenceStructure("CGAT", "))))")
-        sss = SequenceStructureSet([ss1, ss2])
-        assert len(sss.seqstructs) == 2
-        assert not any(sss.used)
-        assert not sss.allow_duplicates
-
-    def test_from_single(self):
-        ss = SequenceStructure("ATCG", "((((")
-        sss = SequenceStructureSet.from_single(ss)
-        assert len(sss.seqstructs) == 1
-        assert not any(sss.used)
-        assert sss.allow_duplicates
-
-    def test_get_random(self):
-        ss1 = SequenceStructure("ATCG", "((((")
-        ss2 = SequenceStructure("CGAT", "))))")
-        sss = SequenceStructureSet([ss1, ss2])
-        sec_struct = sss.get_random()
-        assert sec_struct in [ss1, ss2]
-        sss.set_used(ss1)
-        assert any(sss.used)
-
-    def test_set_used(self):
-        ss1 = SequenceStructure("ATCG", "((((")
-        ss2 = SequenceStructure("CGAT", "))))")
-        sss = SequenceStructureSet([ss1, ss2])
-        sss.set_used(ss1)
-        assert sss.used[0]
-
-    def test_set_last_used(self):
-        ss1 = SequenceStructure("ATCG", "((((")
-        ss2 = SequenceStructure("CGAT", "))))")
-        sss = SequenceStructureSet([ss1, ss2])
-        sss.get_random()
-        sss.set_last_used()
-        assert sss.used[sss.last]
-
-    def test_from_csv(self):
-        csv_path = (
-            get_resources_path() / "barcodes/helices/len_1/md_0_gu_0_0.csv"
-        )
-        sss = SequenceStructureSet.from_csv(csv_path)
-        assert len(sss.seqstructs) == 4
-        assert not any(sss.used)
-        assert not sss.allow_duplicates
+def test_parse_sequence_structure_sets():
+    params = {
+        "H1": {"m_type": "HELIX", "gu": True, "length": "5-6"},
+        "SS1": {"m_type": "SSTRAND", "length": "5"},
+        "HP1": {
+            "m_type": "HAIRPIN",
+            "length": "5",
+            "sequence": "CAAAG",
+            "structure": "(...)",
+        },
+    }
+    sss_dict = parse_sequence_structure_sets(10, params)
+    assert len(sss_dict) == 3
+    assert len(sss_dict["H1"].seqstructs) == 27
+    assert len(sss_dict["SS1"].seqstructs) == 32
+    assert len(sss_dict["HP1"].seqstructs) == 11
 
 
-class TestSequenceStructureSetFromParams:
-    def test_helix(self):
-        params = {"H1": {"m_type": "HELIX", "gu": True, "length": "5-6"}}
-        sss = sequence_structure_set_from_params(10, params['H1'])
-        assert len(sss.seqstructs) == 27
+def test_get_design_setup():
+    seq_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+    params = {
+        "P5": {"name": "ref_hairpin_5prime"},
+        "P3": {"name": "rt_tail"},
+        "HPBARCODE": {
+            "m_type": "HAIRPIN",
+            "length": "5",
+            "sequence": "CAAAG",
+            "structure": "(...)",
+        },
+        "HBARCODE6": {"m_type": "HELIX", "length": "5-6"},
+        "AC": {"sequence": "AC", "structure": ".."},
+    }
+    build_up = get_design_setup(10, seq_str, params)
+    assert len(build_up) == 5
+    assert build_up[0][1] == "HBARCODE6"
+    assert build_up[1][1] == "HPBARCODE"
+    assert build_up[2][1] == "AC"
+    assert build_up[3][1] == "P5"
+    assert build_up[4][1] == "P3"
 
-    def test_sstrand(self):
-        params = {"SS1": {"m_type": "SSTRAND", "length" : "5"}}
-        sss = sequence_structure_set_from_params(10, params['SS1'])
 
+def test_design():
+    seq_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+    params = {
+        "P5": {"name": "ref_hairpin_5prime"},
+        "P3": {"name": "rt_tail"},
+        "HPBARCODE": {
+            "m_type": "HAIRPIN",
+            "length": "5",
+            "sequence": "CAAAG",
+            "structure": "(...)",
+        },
+        "HBARCODE6": {"m_type": "HELIX", "length": "5-6"},
+        "AC": {"sequence": "AC", "structure": ".."},
+    }
+    build_up = get_design_setup(10, seq_str, params)
+    seq_struct = SequenceStructure("GGGGAAAACCCC", "((((....))))")
+    output = design(seq_struct, build_up)
