@@ -117,3 +117,20 @@ class TestSequenceStructureSetFromParams:
         set_dict = self.parser.parse(10, params)
         assert len(set_dict["SS1"]) == 1
         assert len(set_dict["SS1"].get_random()) == 5
+
+    def test_complex_parse(self):
+        params = {
+            "H1" : {"m_type": "HELIX", "gu": True, "length": "5-6"},
+            "SS1": {"m_type": "SSTRAND", "length": "5"},
+            "HP1": {
+                "m_type"   : "HAIRPIN",
+                "length"   : "5",
+                "sequence" : "CAAAG",
+                "structure": "(...)",
+            },
+        }
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict) == 3
+        assert len(set_dict["H1"].seqstructs) == 27
+        assert len(set_dict["SS1"].seqstructs) == 32
+        assert len(set_dict["HP1"].seqstructs) == 11

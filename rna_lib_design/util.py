@@ -8,6 +8,10 @@ from typing import List
 from seq_tools.sequence import to_dna, get_reverse_complement
 from rna_lib_design import params, logger, settings, structure, structure_set
 
+basepairs = ["AU", "UA", "GC", "CG", "GU", "UG"]
+basepairs_wc = ["AU", "UA", "GC", "CG"]
+basepairs_gu = ["GU", "UG"]
+
 log = logger.setup_applevel_logger()
 
 
