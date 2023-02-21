@@ -11,7 +11,6 @@ from rna_lib_design.structure_set import (
 )
 from rna_lib_design.logger import get_logger
 
-
 log = get_logger(__file__)
 
 
@@ -135,7 +134,8 @@ class Designer:
             log.info("no 'ens_defect' column - adding one")
             if "structure" in df.columns:
                 log.info(
-                    "structure column will be overwritten with folded structure")
+                    "structure column will be overwritten with folded structure"
+                )
             df = fold_seqs_in_df(df)
         df.rename(
             columns={
@@ -294,12 +294,13 @@ class Designer:
                 raise ValueError(f"unknown direction {direction}")
         return seq_struct, iterating_sets
 
+
 # TODO interface to run with multiple cores
 def design_multiprocess(df_sequences, build_str, params):
     pass
 
 
-
+# TODO update this and generalize
 def write_results_to_file(
     df: pd.DataFrame, fname="results", opool_name="opool"
 ) -> None:
@@ -335,4 +336,3 @@ def write_results_to_file(
     df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
     df_sub.to_csv(f"{fname}-opool.csv", index=False)
     """
-

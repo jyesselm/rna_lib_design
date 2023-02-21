@@ -87,7 +87,7 @@ class TestSequenceStructureSetFromParams:
     def test_helix(self):
         params = {"H1": {"m_type": "HELIX", "gu": True, "length": "5-6"}}
         set_dict = self.parser.parse(10, params)
-        assert len(set_dict['H1']) == 27
+        assert len(set_dict["H1"]) == 27
 
     def test_sstrand(self):
         params = {"SS1": {"m_type": "SSTRAND", "length": "5"}}
@@ -99,13 +99,13 @@ class TestSequenceStructureSetFromParams:
             "HP1": {
                 "m_type": "HAIRPIN",
                 "length": "5",
-                "sequence": "CAAAG",
-                "structure": "(...)",
+                "loop_sequence": "CAAAG",
+                "loop_structure": "(...)",
             }
         }
         set_dict = self.parser.parse(10, params)
-        assert len(set_dict['HP1']) == 11
-        assert len(set_dict['HP1'].get_random()) == 18
+        assert len(set_dict["HP1"]) == 11
+        assert len(set_dict["HP1"].get_random()) == 18
 
     def test_single(self):
         params = {
@@ -120,13 +120,13 @@ class TestSequenceStructureSetFromParams:
 
     def test_complex_parse(self):
         params = {
-            "H1" : {"m_type": "HELIX", "gu": True, "length": "5-6"},
+            "H1": {"m_type": "HELIX", "gu": True, "length": "5-6"},
             "SS1": {"m_type": "SSTRAND", "length": "5"},
             "HP1": {
-                "m_type"   : "HAIRPIN",
-                "length"   : "5",
-                "sequence" : "CAAAG",
-                "structure": "(...)",
+                "m_type": "HAIRPIN",
+                "length": "5",
+                "loop_sequence": "CAAAG",
+                "loop_structure": "(...)",
             },
         }
         set_dict = self.parser.parse(10, params)

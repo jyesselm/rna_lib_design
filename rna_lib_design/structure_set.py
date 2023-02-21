@@ -190,14 +190,16 @@ class SequenceStructureSetParser:
         self, name, num_seqs, lengths, params: Dict
     ) -> SequenceStructureSet:
         log.info(f"{name} structure type is hairpin")
-        if "sequence" in params and "structure" in params:
+        if "loop_sequence" in params and "loop_structure" in params:
             seq_struct = SequenceStructure(
-                params["sequence"], params["structure"]
+                params["loop_sequence"], params["loop_structure"]
             )
         elif "name" in params:
             seq_struct = get_common_seq_struct(params["name"])
         else:
-            raise ValueError("sequence and structure or name must be specified")
+            raise ValueError(
+                "loop_sequence and loop_structure or name must be specified"
+            )
         buffer_5p = SequenceStructure("", "")
         buffer_3p = SequenceStructure("AAA", "...")
         if "buffer_5p_seq" in params:

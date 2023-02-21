@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from typing import List
 
 from seq_tools.sequence import to_dna, get_reverse_complement
-from rna_lib_design import params, logger, settings, structure, structure_set
+from rna_lib_design.logger import get_logger
 
 basepairs = ["AU", "UA", "GC", "CG", "GU", "UG"]
 basepairs_wc = ["AU", "UA", "GC", "CG"]
 basepairs_gu = ["GU", "UG"]
 
-log = logger.setup_applevel_logger()
+log = get_logger("__file__")
 
 
 @dataclass(frozen=True, order=True)
@@ -218,19 +218,3 @@ def random_helix(length, gu=0):
         seq_2 = bp[1] + seq_2
     return [seq_1, seq_2]
 
-
-def num_of_basepairs(self, ss):
-    pass
-
-
-@dataclass(frozen=True, order=True)
-class Stretches:
-    max_stretch_1: int
-    max_stretch_2: int
-    max_gc_stretch: int
-
-
-def compute_stretches(seq1, seq2):
-    return Stretches(
-        max_stretch(seq1), max_stretch(seq2), max_gc_stretch(seq1, seq2)
-    )

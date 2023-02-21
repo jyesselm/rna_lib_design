@@ -16,8 +16,8 @@ class TestResources:
             "HPBARCODE": {
                 "m_type": "HAIRPIN",
                 "length": "5",
-                "sequence": "CAAAG",
-                "structure": "(...)",
+                "loop_sequence": "CAAAG",
+                "loop_structure": "(...)",
             },
             "HBARCODE6": {"m_type": "HELIX", "length": "5-6"},
             "AC": {"sequence": "AC", "structure": ".."},
