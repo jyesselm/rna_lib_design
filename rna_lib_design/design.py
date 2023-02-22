@@ -1,17 +1,21 @@
+import multiprocessing
 import pandas as pd
+import numpy as np
 
 from dataclasses import dataclass
 from vienna import fold
 from vienna.vienna import FoldResults
 
-from seq_tools import fold as fold_seqs_in_df
+from seq_tools import fold as fold_seqs_in_df, to_dna, has_5p_sequence
 from rna_lib_design.structure_set import (
     SequenceStructure,
     SequenceStructureSetParser,
 )
 from rna_lib_design.logger import get_logger
+from rna_lib_design.settings import get_resources_path
+from rna_lib_design.util import compute_edit_distance
 
-log = get_logger(__file__)
+log = get_logger("DESIGN")
 
 
 def parse_build_str(seq_str):
@@ -95,9 +99,14 @@ class Designer:
     def design(self, df_sequences, build_str, params):
         df_results = self.__setup_dataframe(df_sequences)
         build_up = self.__get_build_up(len(df_sequences), build_str, params)
+        count = -1
         for i, row in df_results.iterrows():
+            count += 1
+            if count % 100 == 0 and count > 0:
+                log.info(f"processed {count} sequences")
+                print(f"processed {count} sequences")
             soi_seq_struct = SequenceStructure(
-                row["sequence"], row["structure"]
+                row["org_sequence"], row["org_structure"]
             )
             seq_struct, iterating_sets = self.__setup_seq_struct(
                 soi_seq_struct, build_up
@@ -105,7 +114,7 @@ class Designer:
             df_results.at[i, "design_sequence"] = seq_struct.sequence
             df_results.at[i, "design_structure"] = seq_struct.structure
             results = self.__get_designed_seq_struct(
-                seq_struct, row["org_ens_defect"], iterating_sets
+                seq_struct, row["name"], row["org_ens_defect"], iterating_sets
             )
             # no design found
             if results[0] == "":
@@ -158,7 +167,7 @@ class Designer:
         return df
 
     def __get_designed_seq_struct(
-        self, seq_struct, org_ens_defect, iterating_sets
+        self, seq_struct, name, org_ens_defect, iterating_sets
     ):
         best = []
         best_seq_struct = SequenceStructure("", "")
@@ -191,12 +200,14 @@ class Designer:
         if self.opts.score_method == "increase":
             diff = best_r.ens_defect - org_ens_defect
             if diff > self.opts.increase_ens_defect:
-                log.warn("design ens_defect increase too large: " + str(diff))
+                log.warn(
+                    f"design ens_defect increase too large: {str(diff)} for seq {name}"
+                )
                 return ["", "", -999, 999]
         elif self.opts.score_method == "max":
             if best_r.ens_defect > self.opts.max_ens_defect:
                 log.warn(
-                    "design ens_defect too large: " + str(best_r.ens_defect)
+                    f"design ens_defect too large: " + str(best_r.ens_defect)
                 )
                 return ["", "", -999, 999]
         else:
@@ -296,15 +307,44 @@ class Designer:
 
 
 # TODO interface to run with multiple cores
-def design_multiprocess(df_sequences, build_str, params):
-    pass
+def design_multiprocess(
+    n_processes, df_sequences, build_str, params, design_opts
+):
+    log.info(f"running on {n_processes} cores with mutliprocessing")
+    designer = Designer()
+    designer.setup(design_opts)
+    with multiprocessing.Pool(n_processes) as pool:
+        dfs = pool.starmap(
+            designer.design,
+            [
+                (df_s, build_str, params)
+                for df_s in np.array_split(df_sequences, n_processes)
+            ],
+        )
+        return pd.concat(dfs)
+
+
+def get_seq_fwd_primer_code(df: pd.DataFrame) -> str:
+    """
+    gets the sequence forward primer code
+    :param df: the dataframe with sequences
+    """
+    df = df.copy()
+    df = to_dna(df)
+    path = get_resources_path() / "resources" / "p5_sequences.csv"
+    df_p5 = pd.read_csv(path)
+    for _, row in df_p5.iterrows():
+        # if all sequences in df start with the p5 sequence then return the p5 code
+        if has_5p_sequence(df, row["sequence"]):
+            return row["code"]
+    return ""
 
 
 # TODO update this and generalize
+# TODO use filename as opool name?
 def write_results_to_file(
     df: pd.DataFrame, fname="results", opool_name="opool"
 ) -> None:
-    """
     log.info(f"{fname}-all.csv contains all information generated from run")
     df.to_csv(f"{fname}-all.csv", index=False)
     log.info(
@@ -317,17 +357,17 @@ def write_results_to_file(
     for i, row in df_sub.iterrows():
         f.write(f">{row['name']}\n{row['sequence']}\n")
     f.close()
-    edit_dist = util.compute_edit_distance(df_sub)
+    edit_dist = compute_edit_distance(df_sub)
     log.info(f"the edit distance of lib is: {edit_dist}")
     df_sub["sequence"] = [
         "TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]
     ]
-    p5_seq = util.indentify_p5_sequence(df_sub["sequence"])
+    """p5_seq = util.indentify_p5_sequence(df_sub["sequence"])
     fwd_primer = util.indentify_fwd_primer(df_sub["sequence"])
     rev_primer = util.indentify_rev_primer(df_sub["sequence"])
     log.info("p5 seq -> " + str(p5_seq))
     log.info("fwd primer -> " + str(fwd_primer))
-    log.info("rev primer -> " + str(rev_primer))
+    log.info("rev primer -> " + str(rev_primer))"""
     df_sub.to_csv(f"{fname}-dna.csv", index=False)
     df_sub = df_sub.rename(
         columns={"name": "Pool name", "sequence": "Sequence"}
@@ -335,4 +375,3 @@ def write_results_to_file(
     df_sub["Pool name"] = opool_name
     df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
     df_sub.to_csv(f"{fname}-opool.csv", index=False)
-    """

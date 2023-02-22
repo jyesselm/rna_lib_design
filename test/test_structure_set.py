@@ -99,8 +99,8 @@ class TestSequenceStructureSetFromParams:
             "HP1": {
                 "m_type": "HAIRPIN",
                 "length": "5",
-                "loop_sequence": "CAAAG",
-                "loop_structure": "(...)",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
             }
         }
         set_dict = self.parser.parse(10, params)
@@ -125,8 +125,8 @@ class TestSequenceStructureSetFromParams:
             "HP1": {
                 "m_type": "HAIRPIN",
                 "length": "5",
-                "loop_sequence": "CAAAG",
-                "loop_structure": "(...)",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
             },
         }
         set_dict = self.parser.parse(10, params)

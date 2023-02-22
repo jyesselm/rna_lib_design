@@ -1,0 +1,9 @@
+# to be used with preset/single_barcode_helix.yml should return an error
+# as it swaps out the barcode type from helix to hairpin which I am disallowing
+segments:
+  BARCODE1:
+    m_type : "HAIRPIN"
+    loop_seq : "CAAAG"
+    loop_ss : "(...)"
+    length : 6
+

@@ -8,7 +8,7 @@ from seq_tools import SequenceStructure
 from rna_lib_design.logger import get_logger
 from rna_lib_design.settings import get_resources_path
 
-log = get_logger(__file__)
+log = get_logger("STRUCTURE-SET")
 
 
 def str_to_range(x):
@@ -190,29 +190,29 @@ class SequenceStructureSetParser:
         self, name, num_seqs, lengths, params: Dict
     ) -> SequenceStructureSet:
         log.info(f"{name} structure type is hairpin")
-        if "loop_sequence" in params and "loop_structure" in params:
+        if "loop_seq" in params and "loop_ss" in params:
             seq_struct = SequenceStructure(
-                params["loop_sequence"], params["loop_structure"]
+                params["loop_seq"], params["loop_ss"]
             )
         elif "name" in params:
             seq_struct = get_common_seq_struct(params["name"])
         else:
             raise ValueError(
-                "loop_sequence and loop_structure or name must be specified"
+                "loop_seq and loop_ss or name must be specified"
             )
         buffer_5p = SequenceStructure("", "")
         buffer_3p = SequenceStructure("AAA", "...")
         if "buffer_5p_seq" in params:
             seq = params["buffer_5p_seq"]
-            if "buffer_5p_struct" in params:
+            if "buffer_5p_ss" in params:
                 struct = params["buffer_5p_struct"]
             else:
                 struct = "." * len(seq)
             buffer_5p = SequenceStructure(seq, struct)
         if "buffer_3p_seq" in params:
             seq = params["buffer_3p_seq"]
-            if "buffer_3p_struct" in params:
-                struct = params["buffer_3p_struct"]
+            if "buffer_3p_ss" in params:
+                struct = params["buffer_3p_ss"]
             else:
                 struct = "." * len(seq)
             buffer_3p = SequenceStructure(seq, struct)

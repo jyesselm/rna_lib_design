@@ -16,8 +16,8 @@ class TestResources:
             "HPBARCODE": {
                 "m_type": "HAIRPIN",
                 "length": "5",
-                "loop_sequence": "CAAAG",
-                "loop_structure": "(...)",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
             },
             "HBARCODE6": {"m_type": "HELIX", "length": "5-6"},
             "AC": {"sequence": "AC", "structure": ".."},
@@ -78,7 +78,8 @@ def test_design():
     df_sequences = TestResources.get_simple_sequence_df()
     designer = Designer()
     df_results = designer.design(df_sequences, build_str, params)
-    #row = df_results.iloc[0]
-    #print()
-    #print(row)
-
+    row = df_results.iloc[0]
+    assert (
+        row["design_sequence"]
+        == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
+    )

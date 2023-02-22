@@ -18,8 +18,12 @@ segments:
     structure: ""
   BARCODE1:
     m_type : ""
-    sequence: ""
-    structure: ""
+    loop_seq: ""
+    loop_ss: ""
+    buffer_5p_seq : ""
+    buffer_5p_ss : ""
+    buffer_3p_seq: ""
+    buffer_3p_ss: ""
     length : -999
   P3EXT:
     name: ""

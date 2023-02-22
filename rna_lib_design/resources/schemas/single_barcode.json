@@ -82,10 +82,22 @@
                         "m_type": {
                             "type": "string"
                         },
-                        "sequence": {
+                        "loop_seq": {
                             "type": "string"
                         },
-                        "structure": {
+                        "loop_ss": {
+                            "type": "string"
+                        },
+                        "buffer_5p_seq": {
+                            "type": "string"
+                        },
+                        "buffer_5p_ss": {
+                            "type": "string"
+                        },
+                        "buffer_3p_seq": {
+                            "type": "string"
+                        },
+                        "buffer_3p_ss": {
                             "type": "string"
                         },
                         "length": {
