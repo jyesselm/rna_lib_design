@@ -4,6 +4,8 @@
 __pycache__
 build/
 dist/
+old_barcodes/
+.vscode
 
 # C extensions
 *.so

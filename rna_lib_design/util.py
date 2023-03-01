@@ -6,20 +6,30 @@ from dataclasses import dataclass
 from typing import List
 
 from seq_tools.sequence import to_dna, get_reverse_complement
+from seq_tools.dataframe import has_5p_sequence, has_3p_sequence
 from rna_lib_design.logger import get_logger
 
-basepairs = ["AU", "UA", "GC", "CG", "GU", "UG"]
-basepairs_wc = ["AU", "UA", "GC", "CG"]
-basepairs_gu = ["GU", "UG"]
+BASEPAIRS = ["AU", "UA", "GC", "CG", "GU", "UG"]
+BASEPAIRS_WC = ["AU", "UA", "GC", "CG"]
+BASEPAIRS_GU = ["GU", "UG"]
 
-log = get_logger("__file__")
+log = get_logger("UTIL")
 
 
-@dataclass(frozen=True, order=True)
-class SequenceInfo(object):
-    name: str
-    sequence: str
-    code: str
+def get_seq_fwd_primer_code(df: pd.DataFrame) -> str:
+    """
+    gets the sequence forward primer code
+    :param df: the dataframe with sequences
+    """
+    df = df.copy()
+    df = to_dna(df)
+    path = os.path.join(LIB_PATH, "resources", "p5_sequences.csv")
+    df_p5 = pd.read_csv(path)
+    for _, row in df_p5.iterrows():
+        # if all sequences in df start with the p5 sequence then return the p5 code
+        if all(df["sequence"].str.startswith(row["sequence"])):  # type: ignore
+            return row["code"]
+    return ""
 
 
 def get_primer_dataframe(file_path: str) -> pd.DataFrame:
@@ -30,9 +40,14 @@ def get_primer_dataframe(file_path: str) -> pd.DataFrame:
     return df
 
 
-def find_common_subsequence(
-    common_seqs: pd.DataFrame, seqs: List[str]
-) -> SequenceInfo:
+@dataclass(frozen=True, order=True)
+class SequenceInfo:
+    name: str
+    sequence: str
+    code: str
+
+
+def find_common_subsequence(common_seqs: pd.DataFrame, seqs: List[str]) -> SequenceInfo:
     seqs = [to_dna(seq) for seq in seqs]
     saved_row = None
     for i, row in common_seqs.iterrows():
@@ -48,14 +63,10 @@ def find_common_subsequence(
     if saved_row is None:
         return SequenceInfo("", "", "")
     else:
-        return SequenceInfo(
-            saved_row["name"], saved_row["sequence"], saved_row["code"]
-        )
+        return SequenceInfo(saved_row["name"], saved_row["sequence"], saved_row["code"])
 
 
-def find_valid_subsequences(
-    common_seqs: pd.DataFrame, seqs: List[str]
-) -> pd.DataFrame:
+def find_valid_subsequences(common_seqs: pd.DataFrame, seqs: List[str]) -> pd.DataFrame:
     seqs = [to_dna(seq) for seq in seqs]
     mask = [False for _ in range(len(common_seqs))]
     for i, row in common_seqs.iterrows():
@@ -155,66 +166,3 @@ def hamming(a, b):
         if i != j:
             dist += 1
     return dist
-
-
-def max_stretch(s):
-    """returns max stretch of the same letter in string"""
-    max_stretch = 0
-    last = None
-    stretch = 1
-    for n in s:
-        if last == None:
-            last = n
-            stretch = 1
-            continue
-        if n == last:
-            stretch += 1
-            if stretch > max_stretch:
-                max_stretch = stretch
-        else:
-            stretch = 1
-        last = n
-    if stretch > max_stretch:
-        max_stretch = stretch
-    return max_stretch
-
-
-def max_gc_stretch(s1, s2):
-    i = -1
-    j = len(s2)
-    max_count = 0
-    count = 0
-    while i < len(s1) - 1:
-        i += 1
-        j -= 1
-        flag = 0
-        if s1[i] == "G" and s2[j] == "C":
-            flag = 1
-        elif s1[i] == "C" and s2[j] == "G":
-            flag = 1
-        if flag:
-            count += 1
-            continue
-        else:
-            if count > max_count:
-                max_count = count
-            count = 0
-    if count > max_count:
-        max_count = count
-    return max_count
-
-
-def random_helix(length, gu=0):
-    seq_1 = ""
-    seq_2 = ""
-    bps = []
-    for i in range(0, gu):
-        bps.append(random_gu_basepair())
-    for i in range(0, length - gu):
-        bps.append(random_wc_basepair())
-    random.shuffle(bps)
-    for bp in bps:
-        seq_1 += bp[0]
-        seq_2 = bp[1] + seq_2
-    return [seq_1, seq_2]
-

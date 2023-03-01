@@ -142,9 +142,7 @@ class Designer:
         if "ens_defect" not in df.columns:
             log.info("no 'ens_defect' column - adding one")
             if "structure" in df.columns:
-                log.info(
-                    "structure column will be overwritten with folded structure"
-                )
+                log.info("structure column will be overwritten with folded structure")
             df = fold_seqs_in_df(df)
         df.rename(
             columns={
@@ -161,9 +159,7 @@ class Designer:
         df["ens_defect"] = -999
         df["mfe"] = 999
         col_order = ["name", "sequence", "structure", "ens_defect", "mfe"]
-        df = df.reindex(
-            col_order + list(df.columns.difference(col_order)), axis=1
-        )
+        df = df.reindex(col_order + list(df.columns.difference(col_order)), axis=1)
         return df
 
     def __get_designed_seq_struct(
@@ -206,9 +202,7 @@ class Designer:
                 return ["", "", -999, 999]
         elif self.opts.score_method == "max":
             if best_r.ens_defect > self.opts.max_ens_defect:
-                log.warn(
-                    f"design ens_defect too large: " + str(best_r.ens_defect)
-                )
+                log.warn(f"design ens_defect too large: " + str(best_r.ens_defect))
                 return ["", "", -999, 999]
         else:
             raise ValueError("unknown score method: " + self.opts.score_method)
@@ -281,9 +275,7 @@ class Designer:
                     seq = symbol * length + "&" + symbol * length
                     h_seq_struct = SequenceStructure(seq, seq).split_strands()
                     seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
-                    iterating_sets.append(
-                        [[symbol * length, symbol * length], cur_set]
-                    )
+                    iterating_sets.append([[symbol * length, symbol * length], cur_set])
                 else:
                     h_seq_struct = cur_set.get_random().split_strands()
                     seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
@@ -307,9 +299,7 @@ class Designer:
 
 
 # TODO interface to run with multiple cores
-def design_multiprocess(
-    n_processes, df_sequences, build_str, params, design_opts
-):
+def design_multiprocess(n_processes, df_sequences, build_str, params, design_opts):
     log.info(f"running on {n_processes} cores with mutliprocessing")
     designer = Designer()
     designer.setup(design_opts)
@@ -347,9 +337,7 @@ def write_results_to_file(
 ) -> None:
     log.info(f"{fname}-all.csv contains all information generated from run")
     df.to_csv(f"{fname}-all.csv", index=False)
-    log.info(
-        f"{fname}-rna.csv contains only information related to the RNA sequence"
-    )
+    log.info(f"{fname}-rna.csv contains only information related to the RNA sequence")
     df.to_csv(f"{fname}-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
@@ -357,11 +345,8 @@ def write_results_to_file(
     for i, row in df_sub.iterrows():
         f.write(f">{row['name']}\n{row['sequence']}\n")
     f.close()
-    edit_dist = compute_edit_distance(df_sub)
-    log.info(f"the edit distance of lib is: {edit_dist}")
-    df_sub["sequence"] = [
-        "TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]
-    ]
+
+    df_sub["sequence"] = ["TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]]
     """p5_seq = util.indentify_p5_sequence(df_sub["sequence"])
     fwd_primer = util.indentify_fwd_primer(df_sub["sequence"])
     rev_primer = util.indentify_rev_primer(df_sub["sequence"])
@@ -369,9 +354,7 @@ def write_results_to_file(
     log.info("fwd primer -> " + str(fwd_primer))
     log.info("rev primer -> " + str(rev_primer))"""
     df_sub.to_csv(f"{fname}-dna.csv", index=False)
-    df_sub = df_sub.rename(
-        columns={"name": "Pool name", "sequence": "Sequence"}
-    )
+    df_sub = df_sub.rename(columns={"name": "Pool name", "sequence": "Sequence"})
     df_sub["Pool name"] = opool_name
     df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
     df_sub.to_csv(f"{fname}-opool.csv", index=False)

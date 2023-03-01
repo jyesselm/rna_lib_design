@@ -107,6 +107,8 @@ def barcode(csv, btype, param_file, output):
     df_results = run_design(csv, schema_file, preset_file, param_file, 8)
     os.makedirs(output, exist_ok=True)
     write_results_to_file(df_results)
+    edit_dist = compute_edit_distance(df_results)
+    log.info(f"the edit distance of lib is: {edit_dist}")
 
 
 @cli.command()
