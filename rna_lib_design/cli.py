@@ -94,14 +94,15 @@ def cli():
 @cloup.option("-t", "--btype", type=str, default=None)
 @cloup.option("--param-file", type=cloup.Path(exists=True), default=None)
 @cloup.option("-o", "--output", default="results")
-def barcode(csv, btype, param_file, output):
+@cloup.option("-p", "--num-processes", type=int, default=1)
+def barcode(csv, btype, param_file, num_processes, output):
     setup_log_and_log_inputs(csv, btype, param_file)
     schema_file = get_resources_path() / "schemas" / "single_barcode.json"
     if btype is None:
         preset_file = None
     else:
         preset_file = get_barcode_preset_parameters(btype.lower(), "single_barcode")
-    df_results = run_design(csv, schema_file, preset_file, param_file, 8)
+    df_results = run_design(csv, schema_file, preset_file, param_file, num_processes)
     os.makedirs(output, exist_ok=True)
     write_results_to_file(df_results)
     edit_dist = compute_edit_distance(df_results)

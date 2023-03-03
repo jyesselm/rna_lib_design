@@ -321,7 +321,7 @@ def get_seq_fwd_primer_code(df: pd.DataFrame) -> str:
     """
     df = df.copy()
     df = to_dna(df)
-    path = get_resources_path() / "resources" / "p5_sequences.csv"
+    path = get_resources_path() / "resources" / "named_seqs" / "p5_sequences.csv"
     df_p5 = pd.read_csv(path)
     for _, row in df_p5.iterrows():
         # if all sequences in df start with the p5 sequence then return the p5 code

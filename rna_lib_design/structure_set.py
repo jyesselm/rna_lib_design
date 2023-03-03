@@ -27,8 +27,7 @@ def str_to_range(x):
         (
             i if len(i) == 1 else list(range(i[0], i[1] + 1))
             for i in (
-                [int(j) for j in i if j]
-                for i in re.findall(r"(\d+),?(?:-(\d+))?", x)
+                [int(j) for j in i if j] for i in re.findall(r"(\d+),?(?:-(\d+))?", x)
             )
         ),
         [],
@@ -55,9 +54,7 @@ class SequenceStructureSet:
         df = pd.read_csv(csv_path)
         seqstructs = []
         for index, row in df.iterrows():
-            seqstructs.append(
-                SequenceStructure(row["sequence"], row["structure"])
-            )
+            seqstructs.append(SequenceStructure(row["sequence"], row["structure"]))
         return cls(seqstructs)
 
     @classmethod
@@ -73,9 +70,7 @@ class SequenceStructureSet:
         return len(self.seqstructs)
 
     def __add__(self, other):
-        seq_struct_set = SequenceStructureSet(
-            self.seqstructs + other.seqstructs
-        )
+        seq_struct_set = SequenceStructureSet(self.seqstructs + other.seqstructs)
         seq_struct_set.used = self.used + other.used
         return seq_struct_set
 
@@ -104,9 +99,7 @@ class SequenceStructureSetParser:
     def __init__(self):
         pass
 
-    def parse(
-        self, num_seqs: int, params: Dict
-    ) -> Dict[str, SequenceStructureSet]:
+    def parse(self, num_seqs: int, params: Dict) -> Dict[str, SequenceStructureSet]:
         """
         Parses a dictionary of parameters into a dictionary of SequenceStructureSets.
         The name of the each dictionary key is the name of the SequenceStructureSet.
@@ -130,9 +123,7 @@ class SequenceStructureSetParser:
         if "m_type" in params:
             return self.__parse_by_type(num_seqs, name, params)
         elif "sequence" in params and "structure" in params:
-            seq_struct = SequenceStructure(
-                params["sequence"], params["structure"]
-            )
+            seq_struct = SequenceStructure(params["sequence"], params["structure"])
             return SequenceStructureSet.from_single(seq_struct)
         elif "name" in params:
             seq_struct = get_common_seq_struct(params["name"])
@@ -142,10 +133,7 @@ class SequenceStructureSetParser:
                 "sequence and structure or name must be specified or m_type"
             )
 
-    def __parse_by_type(
-        self, num_seqs, name, params: Dict
-    ) -> SequenceStructureSet:
-
+    def __parse_by_type(self, num_seqs, name, params: Dict) -> SequenceStructureSet:
         m_type = params["m_type"].upper()
         if "length" not in params:
             raise ValueError("length must be specified with m_type")
@@ -191,15 +179,11 @@ class SequenceStructureSetParser:
     ) -> SequenceStructureSet:
         log.info(f"{name} structure type is hairpin")
         if "loop_seq" in params and "loop_ss" in params:
-            seq_struct = SequenceStructure(
-                params["loop_seq"], params["loop_ss"]
-            )
+            seq_struct = SequenceStructure(params["loop_seq"], params["loop_ss"])
         elif "name" in params:
             seq_struct = get_common_seq_struct(params["name"])
         else:
-            raise ValueError(
-                "loop_seq and loop_ss or name must be specified"
-            )
+            raise ValueError("loop_seq and loop_ss or name must be specified")
         buffer_5p = SequenceStructure("", "")
         buffer_3p = SequenceStructure("AAA", "...")
         if "buffer_5p_seq" in params:
@@ -265,17 +249,13 @@ def get_optimal_set(path, length, min_count, **kwargs) -> str:
 def get_optimal_helix_set(length, min_count, gu=True):
     fname = get_resources_path() / "barcodes/helices.csv"
     csv_path = get_optimal_set(fname, length, min_count, gu=gu)
-    return SequenceStructureSet.from_csv(
-        get_resources_path() / "barcodes" / csv_path
-    )
+    return SequenceStructureSet.from_csv(get_resources_path() / "barcodes" / csv_path)
 
 
 def get_optimal_sstrand_set(length, min_count):
     fname = get_resources_path() / "barcodes/sstrand.csv"
     csv_path = get_optimal_set(fname, length, min_count)
-    return SequenceStructureSet.from_csv(
-        get_resources_path() / "barcodes" / csv_path
-    )
+    return SequenceStructureSet.from_csv(get_resources_path() / "barcodes" / csv_path)
 
 
 def get_optimal_hairpin_set(
@@ -293,11 +273,7 @@ def get_optimal_hairpin_set(
         h_seq_struct = SequenceStructure(row["sequence"], row["structure"])
         h_seq_structs = h_seq_struct.split_strands()
         seqstructs.append(
-            buffer_5p
-            + h_seq_structs[0]
-            + seq_struct
-            + h_seq_structs[1]
-            + buffer_3p
+            buffer_5p + h_seq_structs[0] + seq_struct + h_seq_structs[1] + buffer_3p
         )
     return SequenceStructureSet(seqstructs)
 
@@ -306,7 +282,7 @@ def get_optimal_hairpin_set(
 
 
 def get_common_seq_structs():
-    fname = get_resources_path() / "common_seqs.csv"
+    fname = get_resources_path() / "named_seqs" / "common_seqs.csv"
     return pd.read_csv(fname)
 
 
