@@ -1,4 +1,4 @@
-build_str: "P5-BARCODE1-SOI-P3"
+build_str: "P5-BARCODE1-SOI-P3EXT-P3"
 segments:
   P5:
     name: "ref_hairpin_5prime"

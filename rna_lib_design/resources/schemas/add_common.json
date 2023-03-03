@@ -3,7 +3,7 @@
     "properties": {
         "build_str": {
             "type": "string",
-            "default": "P5-BARCODE1A-SOI-BARCODE1-P3EXT-P3"
+            "default": "P5-SOI-P3EXT-P3"
         },
         "trim_5p": {
             "type": "integer"
@@ -70,38 +70,6 @@
                         },
                         "structure": {
                             "type": "string"
-                        }
-                    },
-                    "default": {},
-                    "additionalProperties": false,
-                    "required": []
-                },
-                "BARCODE1": {
-                    "type": "object",
-                    "properties": {
-                        "m_type": {
-                            "type": "string"
-                        },
-                        "loop_seq": {
-                            "type": "string"
-                        },
-                        "loop_ss": {
-                            "type": "string"
-                        },
-                        "buffer_5p_seq": {
-                            "type": "string"
-                        },
-                        "buffer_5p_ss": {
-                            "type": "string"
-                        },
-                        "buffer_3p_seq": {
-                            "type": "string"
-                        },
-                        "buffer_3p_ss": {
-                            "type": "string"
-                        },
-                        "length": {
-                            "type": "integer"
                         }
                     },
                     "default": {},

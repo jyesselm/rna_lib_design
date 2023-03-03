@@ -1,4 +1,4 @@
-build_str: "P5-BARCODE1A-SOI-BARCODE1-P3EXT-P3"
+build_str: "P5-SOI-P3EXT-P3"
 trim_5p : -999
 trim_3p: -999
 design_opts:
@@ -16,15 +16,6 @@ segments:
     name: ""
     sequence: ""
     structure: ""
-  BARCODE1:
-    m_type : ""
-    loop_seq: ""
-    loop_ss: ""
-    buffer_5p_seq : ""
-    buffer_5p_ss : ""
-    buffer_3p_seq: ""
-    buffer_3p_ss: ""
-    length : -999
   P3EXT:
     name: ""
     sequence: ""

@@ -22,6 +22,7 @@ log = get_logger("CLI")
 # TODO have checks for the library like diversity and size difference between sequences
 # TODO validate build str does it include everything?
 # TODO list and determine the P5 and P3 code if used
+# TODO need to update primers
 
 
 def get_barcode_preset_parameters(btype: str, barcode_name: str):
@@ -71,9 +72,7 @@ def run_design(csv, schema_file, preset_file, param_file, num_processes):
     if num_processes == 1:
         designer = Designer()
         designer.setup(design_opts)
-        df_results = designer.design(
-            df_seqs, params["build_str"], params["segments"]
-        )
+        df_results = designer.design(df_seqs, params["build_str"], params["segments"])
     else:
         df_results = design_multiprocess(
             num_processes,
@@ -101,9 +100,7 @@ def barcode(csv, btype, param_file, output):
     if btype is None:
         preset_file = None
     else:
-        preset_file = get_barcode_preset_parameters(
-            btype.lower(), "single_barcode"
-        )
+        preset_file = get_barcode_preset_parameters(btype.lower(), "single_barcode")
     df_results = run_design(csv, schema_file, preset_file, param_file, 8)
     os.makedirs(output, exist_ok=True)
     write_results_to_file(df_results)
@@ -113,7 +110,7 @@ def barcode(csv, btype, param_file, output):
 
 @cli.command()
 @cloup.argument("csv", type=cloup.Path(exists=True))
-def editdistance(csv):
+def edit_distance(csv):
     setup_log_and_log_inputs(csv, None, None)
     df = pd.read_csv(csv)
     log.info("edit distance:" + str(compute_edit_distance(df)))
