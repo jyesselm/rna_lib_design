@@ -6,14 +6,20 @@ from dataclasses import dataclass
 from vienna import fold
 from vienna.vienna import FoldResults
 
-from seq_tools import fold as fold_seqs_in_df, to_dna, has_5p_sequence
+from seq_tools import (
+    fold as fold_seqs_in_df,
+    to_dna,
+    to_dna_template,
+    has_5p_sequence,
+    to_fasta,
+)
 from rna_lib_design.structure_set import (
     SequenceStructure,
     SequenceStructureSetParser,
 )
 from rna_lib_design.logger import get_logger
 from rna_lib_design.settings import get_resources_path
-from rna_lib_design.util import compute_edit_distance
+from rna_lib_design.util import get_seq_fwd_primer
 
 log = get_logger("DESIGN")
 
@@ -123,6 +129,11 @@ class Designer:
             df_results.at[i, "structure"] = results[1]
             df_results.at[i, "ens_defect"] = results[2]
             df_results.at[i, "mfe"] = results[3]
+        org_num = len(df_results)
+        df_results = df_results[df_results["sequence"] != ""]
+        diff = org_num - len(df_results)
+        if diff > 0:
+            log.info(f"removed {diff} sequences that could not be designed")
         return df_results
 
     def __setup_dataframe(self, df):
@@ -314,47 +325,30 @@ def design_multiprocess(n_processes, df_sequences, build_str, params, design_opt
         return pd.concat(dfs)
 
 
-def get_seq_fwd_primer_code(df: pd.DataFrame) -> str:
-    """
-    gets the sequence forward primer code
-    :param df: the dataframe with sequences
-    """
-    df = df.copy()
-    df = to_dna(df)
-    path = get_resources_path() / "resources" / "named_seqs" / "p5_sequences.csv"
-    df_p5 = pd.read_csv(path)
-    for _, row in df_p5.iterrows():
-        # if all sequences in df start with the p5 sequence then return the p5 code
-        if has_5p_sequence(df, row["sequence"]):
-            return row["code"]
-    return ""
-
-
 # TODO update this and generalize
 # TODO use filename as opool name?
 def write_results_to_file(
-    df: pd.DataFrame, fname="results", opool_name="opool"
+    df: pd.DataFrame, path, fname="results", opool_name="opool"
 ) -> None:
-    log.info(f"{fname}-all.csv contains all information generated from run")
-    df.to_csv(f"{fname}-all.csv", index=False)
-    log.info(f"{fname}-rna.csv contains only information related to the RNA sequence")
-    df.to_csv(f"{fname}-rna.csv", index=False)
+    log.info(f"{path}/{fname}-all.csv contains all information generated from run")
+    df.to_csv(f"{path}/{fname}-all.csv", index=False)
+    log.info(
+        f"{path}/{fname}-rna.csv contains only information related to the RNA sequence"
+    )
+    df = df[["name", "sequence", "structure", "ens_defect", "mfe"]]
+    df.to_csv(f"{path}/{fname}-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
-    f = open(f"{fname}.fasta", "w")
-    for i, row in df_sub.iterrows():
-        f.write(f">{row['name']}\n{row['sequence']}\n")
-    f.close()
-
-    df_sub["sequence"] = ["TTCTAATACGACTCACTATA" + seq for seq in df_sub["sequence"]]
-    """p5_seq = util.indentify_p5_sequence(df_sub["sequence"])
-    fwd_primer = util.indentify_fwd_primer(df_sub["sequence"])
-    rev_primer = util.indentify_rev_primer(df_sub["sequence"])
-    log.info("p5 seq -> " + str(p5_seq))
-    log.info("fwd primer -> " + str(fwd_primer))
-    log.info("rev primer -> " + str(rev_primer))"""
-    df_sub.to_csv(f"{fname}-dna.csv", index=False)
+    p5_seq = get_seq_fwd_primer(df_sub)
+    if p5_seq is None:
+        log.warning("no p5 sequence found")
+    else:
+        log.info("p5 seq -> " + str(p5_seq))
+    to_fasta(df_sub, f"{path}/{fname}.fasta")
+    df_sub = to_dna_template(df_sub)
+    print(df_sub)
+    df_sub.to_csv(f"{path}/{fname}-dna.csv", index=False)
     df_sub = df_sub.rename(columns={"name": "Pool name", "sequence": "Sequence"})
     df_sub["Pool name"] = opool_name
-    df_sub.to_excel(f"{fname}-opool.xlsx", index=False)
-    df_sub.to_csv(f"{fname}-opool.csv", index=False)
+    df_sub.to_excel(f"{path}/{fname}-opool.xlsx", index=False)
+    df_sub.to_csv(f"{path}/{fname}-opool.csv", index=False)

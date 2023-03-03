@@ -1,4 +1,4 @@
-build_str: "P5-SOI-P3EXT-P3"
+build_str: "P5-P5EXT-SOI-P3EXT-P3"
 trim_5p : -999
 trim_3p: -999
 design_opts:
@@ -13,6 +13,10 @@ segments:
     sequence: ""
     structure: ""
   P3:
+    name: ""
+    sequence: ""
+    structure: ""
+  P5EXT:
     name: ""
     sequence: ""
     structure: ""

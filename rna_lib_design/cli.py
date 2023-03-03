@@ -2,6 +2,8 @@ import json
 import os
 import pandas as pd
 import cloup
+from cloup import option_group, option
+from pathlib import Path
 
 from rna_lib_design.design import (
     Designer,
@@ -23,6 +25,7 @@ log = get_logger("CLI")
 # TODO validate build str does it include everything?
 # TODO list and determine the P5 and P3 code if used
 # TODO need to update primers
+# TODO add standard option if nothing is supplied for btype
 
 
 def get_barcode_preset_parameters(btype: str, barcode_name: str):
@@ -84,29 +87,82 @@ def run_design(csv, schema_file, preset_file, param_file, num_processes):
     return df_results
 
 
+def main_options():
+    return option_group(
+        "Main options",
+        "These are the main options for generating a library",
+        option(
+            "-t",
+            "--btype",
+            type=str,
+            default=None,
+            help="what type of barcode to use see full list in resources/presets",
+        ),
+        option(
+            "--param-file",
+            type=cloup.Path(exists=True),
+            default=None,
+            help=(
+                "supply a new param file to override specific present or to manually"
+                "determine each option"
+            ),
+        ),
+        option("-o", "--output", default="results", help="the path to save results to"),
+        option(
+            "-p",
+            "--num-processes",
+            type=int,
+            default=1,
+            help="number of processes to run simultaneously",
+        ),
+        option(
+            "--skip-edit-dist", is_flag=True, help="skip the edit distance calculation"
+        ),
+    )
+
+
 @cloup.group()
 def cli():
     pass
 
 
-@cli.command()
-@cloup.argument("csv", type=cloup.Path(exists=True))
-@cloup.option("-t", "--btype", type=str, default=None)
-@cloup.option("--param-file", type=cloup.Path(exists=True), default=None)
-@cloup.option("-o", "--output", default="results")
-@cloup.option("-p", "--num-processes", type=int, default=1)
-def barcode(csv, btype, param_file, num_processes, output):
+def is_valid_method(method_name):
+    methods = ["single_barcode", "double_barcode", "triple_barcode"]
+    if method_name not in methods:
+        raise ValueError(f"Invalid method: {method_name}")
+
+
+def run_method(method_name, csv, btype, param_file, output, args):
     setup_log_and_log_inputs(csv, btype, param_file)
-    schema_file = get_resources_path() / "schemas" / "single_barcode.json"
+    schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
     if btype is None:
         preset_file = None
     else:
-        preset_file = get_barcode_preset_parameters(btype.lower(), "single_barcode")
-    df_results = run_design(csv, schema_file, preset_file, param_file, num_processes)
+        preset_file = get_barcode_preset_parameters(btype.lower(), method_name)
+    df_results = run_design(
+        csv, schema_file, preset_file, param_file, args["num_processes"]
+    )
     os.makedirs(output, exist_ok=True)
-    write_results_to_file(df_results)
-    edit_dist = compute_edit_distance(df_results)
-    log.info(f"the edit distance of lib is: {edit_dist}")
+    write_results_to_file(df_results, Path("results"))
+    if not args["skip_edit_dist"]:
+        edit_dist = compute_edit_distance(df_results)
+        log.info(f"the edit distance of lib is: {edit_dist}")
+    else:
+        log.info("skipping edit distance calculation")
+
+
+@cli.command()
+@cloup.argument("csv", type=cloup.Path(exists=True))
+@main_options()
+def barcode(csv, btype, param_file, output, **args):
+    run_method("single_barcode", csv, btype, param_file, output, args)
+
+
+@cli.command()
+@cloup.argument("csv", type=cloup.Path(exists=True))
+@main_options()
+def add_common(csv, btype, param_file, output, **args):
+    run_method("add_common", csv, btype, param_file, output, args)
 
 
 @cli.command()
