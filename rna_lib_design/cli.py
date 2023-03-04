@@ -8,7 +8,7 @@ from pathlib import Path
 from rna_lib_design.design import (
     Designer,
     DesignOpts,
-    design_multiprocess,
+    design,
     write_results_to_file,
 )
 from rna_lib_design.logger import get_logger, setup_applevel_logger
@@ -28,7 +28,7 @@ log = get_logger("CLI")
 # TODO add standard option if nothing is supplied for btype
 
 
-def get_barcode_preset_parameters(btype: str, barcode_name: str):
+def get_preset_parameters(btype: str, barcode_name: str):
     full_name = f"{barcode_name}_{btype}.yml"
     if not (get_resources_path() / "presets" / full_name).exists():
         raise ValueError(f"Invalid barcode type: {btype}")
@@ -69,22 +69,49 @@ def run_design(csv, schema_file, preset_file, param_file, num_processes):
         else:
             user_params = parse_parameters_from_file(param_file, schema_file)
             merge_dict(params, user_params)
+    if len(params) == 0:
+        raise ValueError("No parameters supplied")
     log.info(f"Using parameters:\n{json.dumps(params, indent=4)}")
     design_opts = DesignOpts(**params["design_opts"])
     df_seqs = pd.read_csv(csv)
-    if num_processes == 1:
-        designer = Designer()
-        designer.setup(design_opts)
-        df_results = designer.design(df_seqs, params["build_str"], params["segments"])
-    else:
-        df_results = design_multiprocess(
-            num_processes,
-            df_seqs,
-            params["build_str"],
-            params["segments"],
-            design_opts,
-        )
+    df_results = design(
+        num_processes,
+        df_seqs,
+        params["build_str"],
+        params["segments"],
+        design_opts,
+    )
     return df_results
+
+
+def is_valid_method(method_name):
+    methods = ["single_barcode", "double_barcode", "triple_barcode"]
+    if method_name not in methods:
+        raise ValueError(f"Invalid method: {method_name}")
+
+
+def run_method(method_name, csv, btype, param_file, output, args):
+    setup_log_and_log_inputs(csv, btype, param_file)
+    schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
+    if btype is None:
+        preset_file = None
+    else:
+        preset_file = get_preset_parameters(btype.lower(), method_name)
+
+    results = run_design(
+        csv, schema_file, preset_file, param_file, args["num_processes"]
+    )
+    df_results = results.df_results
+    os.makedirs(output, exist_ok=True)
+    write_results_to_file(df_results, Path("results"))
+    if not args["skip_edit_dist"]:
+        edit_dist = compute_edit_distance(df_results)
+        log.info(f"the edit distance of lib is: {edit_dist}")
+    else:
+        log.info("skipping edit distance calculation")
+
+
+# cli commands ########################################################################
 
 
 def main_options():
@@ -124,31 +151,6 @@ def main_options():
 @cloup.group()
 def cli():
     pass
-
-
-def is_valid_method(method_name):
-    methods = ["single_barcode", "double_barcode", "triple_barcode"]
-    if method_name not in methods:
-        raise ValueError(f"Invalid method: {method_name}")
-
-
-def run_method(method_name, csv, btype, param_file, output, args):
-    setup_log_and_log_inputs(csv, btype, param_file)
-    schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
-    if btype is None:
-        preset_file = None
-    else:
-        preset_file = get_barcode_preset_parameters(btype.lower(), method_name)
-    df_results = run_design(
-        csv, schema_file, preset_file, param_file, args["num_processes"]
-    )
-    os.makedirs(output, exist_ok=True)
-    write_results_to_file(df_results, Path("results"))
-    if not args["skip_edit_dist"]:
-        edit_dist = compute_edit_distance(df_results)
-        log.info(f"the edit distance of lib is: {edit_dist}")
-    else:
-        log.info("skipping edit distance calculation")
 
 
 @cli.command()

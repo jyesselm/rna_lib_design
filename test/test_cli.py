@@ -1,8 +1,47 @@
 import pytest
 import shutil
 import pandas as pd
-"""
+
 from click.testing import CliRunner
+from rna_lib_design import cli
+from rna_lib_design.settings import get_resources_path, get_test_path
+
+
+TEST_RESOURCES = get_test_path() / "resources"
+
+
+def test_cli():
+    runner = CliRunner()
+    result = runner.invoke(cli.cli, ["--help"])
+    assert result.exit_code == 0
+    assert "Show this message and exit." in result.output
+
+
+def test_edit_distance():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "edit-distance",
+            str(TEST_RESOURCES / "libs/minittr2.csv"),
+        ],
+    )
+    assert result.exit_code == 0
+
+
+def test_add_common():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "add-common",
+            str(TEST_RESOURCES / "libs/minittr2.csv"),
+        ],
+    )
+    assert result.exit_code == 0
+
+
+"""
 from rna_lib_design.cli import CLIParser
 from rna_lib_design import cli
 from rna_lib_design import testing

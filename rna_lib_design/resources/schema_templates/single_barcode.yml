@@ -7,6 +7,8 @@ design_opts:
   max_attempts: 10
   max_solutions: 10
   score_method: "increase"
+  allowed_ss_mismatch: 2
+  allowed_ss_mismatch_barcodes: 2
 segments:
   P5:
     name: ""

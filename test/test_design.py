@@ -77,7 +77,8 @@ def test_design():
     params = TestResources.get_complex_params()
     df_sequences = TestResources.get_simple_sequence_df()
     designer = Designer()
-    df_results = designer.design(df_sequences, build_str, params)
+    results = designer.design(df_sequences, build_str, params)
+    df_results = results.df_results
     row = df_results.iloc[0]
     assert (
         row["design_sequence"]

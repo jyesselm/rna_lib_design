@@ -72,6 +72,14 @@ class DesignOpts:
     max_attempts: int = 10
     max_solutions: int = 10
     score_method: str = "increase"
+    allowed_ss_mismatch: int = 2
+    allowed_ss_mismatch_barcodes: int = 2
+
+
+@dataclass(frozen=True, order=True)
+class DesignerResults:
+    df_results: pd.DataFrame
+    failures: dict
 
 
 class Designer:
@@ -98,6 +106,12 @@ class Designer:
             "F",
         ]
         self.opts = DesignOpts()
+        self.failures = {
+            "no_solution": 0,
+            "high_ens_defect": 0,
+            "ss_mismatches": 0,
+            "ss_mismatches_barcodes": 0,
+        }
 
     def setup(self, opts: DesignOpts):
         self.opts = opts
@@ -134,15 +148,12 @@ class Designer:
         diff = org_num - len(df_results)
         if diff > 0:
             log.info(f"removed {diff} sequences that could not be designed")
-        return df_results
+        return DesignerResults(df_results, self.failures)
 
     def __setup_dataframe(self, df):
         df = df.copy()
         if "sequence" not in df.columns:
             raise ValueError("no sequence column in dataframe")
-        if "name" not in df.columns:
-            log.info("no 'name' column was in dataframe - adding one")
-            df["name"] = [f"seq_{i}" for i in range(0, len(df))]
         if "structure" not in df.columns:
             log.info("no 'structure' column folding it now")
             if "ens_defect" in df.columns:
@@ -180,6 +191,7 @@ class Designer:
         best_seq_struct = SequenceStructure("", "")
         best_r = FoldResults("", 999, 999, [])
         num_solutions = 0
+        no_solution = True
         for i in range(0, self.opts.max_attempts):
             sequence = seq_struct.sequence
             structure = seq_struct.structure
@@ -195,6 +207,7 @@ class Designer:
             success = self.__score_design(structure, seq_struct.structure, r)
             if not success:
                 continue
+            no_solution = False
             if r.ens_defect < best_r.ens_defect:
                 best_r = r
                 best_seq_struct = SequenceStructure(sequence, r.dot_bracket)
@@ -202,18 +215,21 @@ class Designer:
             num_solutions += 1
             if num_solutions >= self.opts.max_solutions:
                 break
-        if best_seq_struct.sequence == "":
-            log.warn("no design found for sequence: " + seq_struct.sequence)
+        if no_solution:
+            self.failures["no_solution"] += 1
+            log.debug("no design found for sequence: " + seq_struct.sequence)
         if self.opts.score_method == "increase":
             diff = best_r.ens_defect - org_ens_defect
             if diff > self.opts.increase_ens_defect:
-                log.warn(
+                self.failures["high_ens_defect"] += 1
+                log.debug(
                     f"design ens_defect increase too large: {str(diff)} for seq {name}"
                 )
                 return ["", "", -999, 999]
         elif self.opts.score_method == "max":
             if best_r.ens_defect > self.opts.max_ens_defect:
-                log.warn(f"design ens_defect too large: " + str(best_r.ens_defect))
+                self.failures["high_ens_defect"] += 1
+                log.debug(f"design ens_defect too large: " + str(best_r.ens_defect))
                 return ["", "", -999, 999]
         else:
             raise ValueError("unknown score method: " + self.opts.score_method)
@@ -231,13 +247,20 @@ class Designer:
     def __score_design(self, structure, design_structure, r):
         if r.dot_bracket == structure:
             return True
-        score = 0
-        for i, (s1, s2, ds) in enumerate(
+        total_score = 0
+        barcode_score = 0
+        for _, (s1, s2, ds) in enumerate(
             zip(structure, r.dot_bracket, design_structure)
         ):
-            if s1 == s2 and ds not in ["(", ")", "."]:
-                score += 1
-        if score < 2:
+            if s1 != s2:
+                total_score += 1
+            if s1 != s2 and ds not in ["(", ")", "."]:
+                barcode_score += 1
+        if total_score > self.opts.allowed_ss_mismatch:
+            self.failures["ss_mismatch"] += 1
+            return False
+        if barcode_score > self.opts.allowed_ss_mismatch_barcodes:
+            self.failures["ss_mismatches_barcodes"] += 1
             return False
         return True
 
@@ -309,23 +332,52 @@ class Designer:
         return seq_struct, iterating_sets
 
 
-# TODO interface to run with multiple cores
-def design_multiprocess(n_processes, df_sequences, build_str, params, design_opts):
-    log.info(f"running on {n_processes} cores with mutliprocessing")
+# design interface to be used with single core or multicore
+def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.DataFrame:
+    """
+    design interface to be used with single core or multicore
+    :param n_processes: number of processes to use
+    :param df_sequences: dataframe of sequences to design
+    :param build_str: build string
+    :param params: params
+    :param design_opts: design options
+    :return: dataframe of designed sequences
+    """
+    log.info("starting design")
+    log.info(f"csv has {len(df_sequences)} sequences")
+    # need to fix this here and not in the design object as it wont work with
+    # multiprocessing
+    if "name" not in df_sequences.columns:
+        log.info("no 'name' column was in dataframe - adding one")
+        df_sequences["name"] = [f"seq_{i}" for i in range(0, len(df_sequences))]
     designer = Designer()
     designer.setup(design_opts)
+    # single core run
+    if n_processes == 1:
+        log.info("running on single core")
+        return designer.design(df_sequences, build_str, params)
+    # multicore runs
+    log.info(f"running on {n_processes} cores with mutliprocessing")
     with multiprocessing.Pool(n_processes) as pool:
-        dfs = pool.starmap(
+        results = pool.starmap(
             designer.design,
             [
                 (df_s, build_str, params)
                 for df_s in np.array_split(df_sequences, n_processes)
             ],
         )
-        return pd.concat(dfs)
+        dfs = []
+        failures = {}
+        for r in results:
+            dfs.append(r.df_results)
+            for key, value in r.failures.items():
+                if key in failures:
+                    failures[key] += value
+                else:
+                    failures[key] = value
+        return DesignerResults(pd.concat(dfs), failures)
 
 
-# TODO update this and generalize
 # TODO use filename as opool name?
 def write_results_to_file(
     df: pd.DataFrame, path, fname="results", opool_name="opool"
@@ -339,6 +391,7 @@ def write_results_to_file(
     df.to_csv(f"{path}/{fname}-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
+    # get primer for sequencing
     p5_seq = get_seq_fwd_primer(df_sub)
     if p5_seq is None:
         log.warning("no p5 sequence found")
@@ -346,7 +399,6 @@ def write_results_to_file(
         log.info("p5 seq -> " + str(p5_seq))
     to_fasta(df_sub, f"{path}/{fname}.fasta")
     df_sub = to_dna_template(df_sub)
-    print(df_sub)
     df_sub.to_csv(f"{path}/{fname}-dna.csv", index=False)
     df_sub = df_sub.rename(columns={"name": "Pool name", "sequence": "Sequence"})
     df_sub["Pool name"] = opool_name
