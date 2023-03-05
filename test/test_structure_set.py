@@ -1,10 +1,13 @@
 import pandas as pd
+import pytest
 
 from rna_lib_design.settings import get_resources_path, get_test_path
 from rna_lib_design.structure_set import (
     SequenceStructure,
     SequenceStructureSet,
     SequenceStructureSetParser,
+    get_named_seq_structs,
+    get_named_seq_struct,
 )
 
 TEST_RESOURCES = get_test_path() / "resources"
@@ -58,9 +61,7 @@ class TestSequenceStructureSet:
         assert sss.used[sss.last]
 
     def test_from_csv(self):
-        csv_path = (
-            get_resources_path() / "barcodes/helices/len_1/md_0_gu_0_0.csv"
-        )
+        csv_path = get_resources_path() / "barcodes/helices/len_1/md_0_gu_0_0.csv"
         sss = SequenceStructureSet.from_csv(csv_path)
         assert len(sss.seqstructs) == 4
         assert not any(sss.used)
@@ -134,3 +135,19 @@ class TestSequenceStructureSetFromParams:
         assert len(set_dict["H1"].seqstructs) == 27
         assert len(set_dict["SS1"].seqstructs) == 32
         assert len(set_dict["HP1"].seqstructs) == 11
+
+
+class TestNamedSequenceStructure:
+    def test_get_all(self):
+        df = get_named_seq_structs()
+        df_sub = df[df["name"] == "uucg_p5_rev_primer"]
+        assert len(df_sub) == 1
+
+    def test_get_one(self):
+        ss = get_named_seq_struct("uucg_p5_rev_primer")
+        assert ss.sequence == "GGAACAGCACUUCGGUGCAAA"
+        assert ss.structure == "......((((....))))..."
+
+    def test_get_one_not_found(self):
+        with pytest.raises(ValueError):
+            get_named_seq_struct("not_a_real_name")

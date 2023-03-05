@@ -1,0 +1,7 @@
+name,sequence,structure
+ref_hairpin,GAUCGAGUAGAUC,((((.....))))
+ref_hairpin_loop,CGAGUAG,(.....)
+ref_hairpin_loop_bp2,GCGAGUAGC,((.....))
+uucg_loop,CUUCGG,(....)
+gaaa_loop,GGAAAC,(....)
+aaa_loop,GAAAC,(...)

@@ -1,7 +1,7 @@
 build_str: "P5-P5EXT-SOI-P3EXT-P3"
 segments:
   P5:
-    name: "ref_hairpin_5prime"
+    name: "uucg_p5_rev_primer"
   P3:
     name: "rt_tail"
   P3EXT:

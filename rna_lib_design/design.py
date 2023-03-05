@@ -1,6 +1,8 @@
 import multiprocessing
+import os
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from dataclasses import dataclass
 from vienna import fold
@@ -10,7 +12,6 @@ from seq_tools import (
     fold as fold_seqs_in_df,
     to_dna,
     to_dna_template,
-    has_5p_sequence,
     to_fasta,
 )
 from rna_lib_design.structure_set import (
@@ -18,7 +19,6 @@ from rna_lib_design.structure_set import (
     SequenceStructureSetParser,
 )
 from rna_lib_design.logger import get_logger
-from rna_lib_design.settings import get_resources_path
 from rna_lib_design.util import get_seq_fwd_primer
 
 log = get_logger("DESIGN")
@@ -257,7 +257,7 @@ class Designer:
             if s1 != s2 and ds not in ["(", ")", "."]:
                 barcode_score += 1
         if total_score > self.opts.allowed_ss_mismatch:
-            self.failures["ss_mismatch"] += 1
+            self.failures["ss_mismatches"] += 1
             return False
         if barcode_score > self.opts.allowed_ss_mismatch_barcodes:
             self.failures["ss_mismatches_barcodes"] += 1
@@ -379,16 +379,20 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
 
 
 # TODO use filename as opool name?
-def write_results_to_file(
-    df: pd.DataFrame, path, fname="results", opool_name="opool"
-) -> None:
-    log.info(f"{path}/{fname}-all.csv contains all information generated from run")
-    df.to_csv(f"{path}/{fname}-all.csv", index=False)
+def write_results_to_file(df: pd.DataFrame, path) -> None:
+    """
+    writes out of the results of a design run to a directory
+    :param df: dataframe of results
+    :param path: path to write to output to
+    """
+    os.makedirs(path, exist_ok=True)
+    log.info(f"{path}/results-all.csv contains all information generated from run")
+    df.to_csv(f"{path}/results-all.csv", index=False)
     log.info(
-        f"{path}/{fname}-rna.csv contains only information related to the RNA sequence"
+        f"{path}/results-rna.csv contains only information related to the RNA sequence"
     )
     df = df[["name", "sequence", "structure", "ens_defect", "mfe"]]
-    df.to_csv(f"{path}/{fname}-rna.csv", index=False)
+    df.to_csv(f"{path}/results-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
     # get primer for sequencing
@@ -397,10 +401,10 @@ def write_results_to_file(
         log.warning("no p5 sequence found")
     else:
         log.info("p5 seq -> " + str(p5_seq))
-    to_fasta(df_sub, f"{path}/{fname}.fasta")
+    to_fasta(df_sub, f"{path}/results.fasta")
     df_sub = to_dna_template(df_sub)
-    df_sub.to_csv(f"{path}/{fname}-dna.csv", index=False)
+    df_sub.to_csv(f"{path}/results-dna.csv", index=False)
     df_sub = df_sub.rename(columns={"name": "Pool name", "sequence": "Sequence"})
-    df_sub["Pool name"] = opool_name
-    df_sub.to_excel(f"{path}/{fname}-opool.xlsx", index=False)
-    df_sub.to_csv(f"{path}/{fname}-opool.csv", index=False)
+    df_sub["Pool name"] = Path(path).stem
+    df_sub.to_excel(f"{path}/results-opool.xlsx", index=False)
+    df_sub.to_csv(f"{path}/results-opool.csv", index=False)

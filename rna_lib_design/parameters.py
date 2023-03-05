@@ -42,6 +42,12 @@ def validate_parameters(params, schema):
     except jsonschema.exceptions.ValidationError as e:
         raise ValueError(e.message)
 
+    # check to make sure each segment dict is valid
+    if "segments" not in params:
+        return
+    # for segment in params["segments"]:
+    #    validate_segment_parameters(segment)
+
 
 def validate_segment_parameters(params):
     if "m_type" in params:
@@ -53,9 +59,7 @@ def validate_segment_parameters(params):
             raise ValueError("Cannot specify name for a segment with m_type")
     elif "sequence" in params:
         if "structure" not in params:
-            raise ValueError(
-                "Must specify structure for a segment with sequence"
-            )
+            raise ValueError("Must specify structure for a segment with sequence")
         elif "name" in params:
             raise ValueError("Cannot specify name for a segment with sequence")
     elif "name" in params:
@@ -66,9 +70,7 @@ def validate_segment_parameters(params):
         elif "m_type" in params:
             raise ValueError("Cannot specify m_type for a segment with name")
     else:
-        raise ValueError(
-            "Must specify either m_type, sequence, or name for a segment"
-        )
+        raise ValueError("Must specify either m_type, sequence, or name for a segment")
     if "m_type" in params and params["m_type"] == "HAIRPIN":
         print("made it")
 

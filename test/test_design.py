@@ -11,7 +11,7 @@ class TestResources:
     @staticmethod
     def get_complex_params():
         params = {
-            "P5": {"name": "ref_hairpin_5prime"},
+            "P5": {"name": "org_minittr_pool_rev_seq_primer"},
             "P3": {"name": "rt_tail"},
             "HPBARCODE": {
                 "m_type": "HAIRPIN",
@@ -19,7 +19,7 @@ class TestResources:
                 "loop_seq": "CAAAG",
                 "loop_ss": "(...)",
             },
-            "HBARCODE6": {"m_type": "HELIX", "length": "5-6"},
+            "HBARCODE6": {"m_type": "HELIX", "length": "6"},
             "AC": {"sequence": "AC", "structure": ".."},
         }
         return params

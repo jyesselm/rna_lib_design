@@ -33,6 +33,14 @@
                 "score_method": {
                     "type": "string",
                     "default": "increase"
+                },
+                "allowed_ss_mismatch": {
+                    "type": "integer",
+                    "default": 2
+                },
+                "allowed_ss_mismatch_barcodes": {
+                    "type": "integer",
+                    "default": 2
                 }
             },
             "default": {},

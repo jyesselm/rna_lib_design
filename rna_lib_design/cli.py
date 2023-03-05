@@ -6,15 +6,14 @@ from cloup import option_group, option
 from pathlib import Path
 
 from rna_lib_design.design import (
-    Designer,
     DesignOpts,
     design,
     write_results_to_file,
 )
+from seq_tools import calc_edit_distance
 from rna_lib_design.logger import get_logger, setup_applevel_logger
 from rna_lib_design.parameters import parse_parameters_from_file
 from rna_lib_design.settings import get_resources_path
-from rna_lib_design.util import compute_edit_distance
 
 log = get_logger("CLI")
 
@@ -22,7 +21,7 @@ log = get_logger("CLI")
 # TODO add cli tool "list" to list all the available p5, p3, and common sequences
 # TODO add cli tool to list which barcode sets are available
 # TODO have checks for the library like diversity and size difference between sequences
-# TODO validate build str does it include everything?
+# TODO validate build str does it include everythingp ?
 # TODO list and determine the P5 and P3 code if used
 # TODO need to update primers
 # TODO add standard option if nothing is supplied for btype
@@ -97,15 +96,15 @@ def run_method(method_name, csv, btype, param_file, output, args):
         preset_file = None
     else:
         preset_file = get_preset_parameters(btype.lower(), method_name)
-
+    if preset_file is None and param_file is None:
+        preset_file = get_resources_path() / "presets" / f"{method_name}_standard.yml"
     results = run_design(
         csv, schema_file, preset_file, param_file, args["num_processes"]
     )
     df_results = results.df_results
-    os.makedirs(output, exist_ok=True)
     write_results_to_file(df_results, Path("results"))
     if not args["skip_edit_dist"]:
-        edit_dist = compute_edit_distance(df_results)
+        edit_dist = calc_edit_distance(df_results)
         log.info(f"the edit distance of lib is: {edit_dist}")
     else:
         log.info("skipping edit distance calculation")
@@ -172,7 +171,7 @@ def add_common(csv, btype, param_file, output, **args):
 def edit_distance(csv):
     setup_log_and_log_inputs(csv, None, None)
     df = pd.read_csv(csv)
-    log.info("edit distance:" + str(compute_edit_distance(df)))
+    log.info("edit distance:" + str(calc_edit_distance(df)))
 
 
 if __name__ == "__main__":

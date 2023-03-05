@@ -126,7 +126,7 @@ class SequenceStructureSetParser:
             seq_struct = SequenceStructure(params["sequence"], params["structure"])
             return SequenceStructureSet.from_single(seq_struct)
         elif "name" in params:
-            seq_struct = get_common_seq_struct(params["name"])
+            seq_struct = get_named_seq_struct(params["name"])
             return SequenceStructureSet.from_single(seq_struct)
         else:
             raise ValueError(
@@ -181,7 +181,7 @@ class SequenceStructureSetParser:
         if "loop_seq" in params and "loop_ss" in params:
             seq_struct = SequenceStructure(params["loop_seq"], params["loop_ss"])
         elif "name" in params:
-            seq_struct = get_common_seq_struct(params["name"])
+            seq_struct = get_named_seq_struct(params["name"])
         else:
             raise ValueError("loop_seq and loop_ss or name must be specified")
         buffer_5p = SequenceStructure("", "")
@@ -281,13 +281,17 @@ def get_optimal_hairpin_set(
 # get seq_structs from dataframes #####################################################
 
 
-def get_common_seq_structs():
-    fname = get_resources_path() / "named_seqs" / "common_seqs.csv"
-    return pd.read_csv(fname)
+def get_named_seq_structs():
+    dir_path = get_resources_path() / "named_seqs/rna"
+    csv_files = list(dir_path.glob("*.csv"))
+    dfs = []
+    for fname in csv_files:
+        dfs.append(pd.read_csv(fname)[["name", "sequence", "structure"]])
+    return pd.concat(dfs)
 
 
-def get_common_seq_struct(name):
-    df = get_common_seq_structs()
+def get_named_seq_struct(name):
+    df = get_named_seq_structs()
     df = df[df["name"] == name]
     if len(df) == 0:
         raise ValueError(f"no sequence structure with name {name}")
