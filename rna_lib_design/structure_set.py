@@ -8,7 +8,7 @@ from seq_tools import SequenceStructure
 from rna_lib_design.logger import get_logger
 from rna_lib_design.settings import get_resources_path
 
-log = get_logger("STRUCTURE-SET")
+log = get_logger("SSET")
 
 
 def str_to_range(x):
@@ -127,6 +127,8 @@ class SequenceStructureSetParser:
             return SequenceStructureSet.from_single(seq_struct)
         elif "name" in params:
             seq_struct = get_named_seq_struct(params["name"])
+            log.info(f"{name} is using a named sequence/structure: {params['name']}")
+            log.info(f"{name} -> {seq_struct}")
             return SequenceStructureSet.from_single(seq_struct)
         else:
             raise ValueError(

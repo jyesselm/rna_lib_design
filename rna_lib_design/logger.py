@@ -1,22 +1,29 @@
 import logging
+import colorlog
 import sys
 
-APP_LOGGER_NAME = "RNA-LIB-DESIGN"
+APP_LOGGER_NAME = "RLD"
+
+log_colors = {
+    "DEBUG": "cyan",
+    "WARNING": "yellow",
+    "ERROR": "red",
+    "CRITICAL": "bold_red",
+}
 
 
-def setup_applevel_logger(
-    logger_name=APP_LOGGER_NAME, is_debug=False, file_name=None
-):
+def setup_applevel_logger(logger_name=APP_LOGGER_NAME, is_debug=False, file_name=None):
     """
     Set up the logger for the app
     """
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG if is_debug else logging.INFO)
 
-    formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+    log_format = "%(levelname)-8s %(name)-12s %(message)s"
+    formatter = colorlog.ColoredFormatter("%(log_color)s"+log_format, log_colors=log_colors)
 
     # pylint: disable=C0103
-    sh = logging.StreamHandler(sys.stdout)
+    sh = colorlog.StreamHandler(sys.stdout)
     sh.setFormatter(formatter)
     logger.handlers.clear()
     logger.addHandler(sh)
@@ -24,7 +31,7 @@ def setup_applevel_logger(
     if file_name:
         # pylint: disable=C0103
         fh = logging.FileHandler(file_name)
-        fh.setFormatter(formatter)
+        fh.setFormatter(logging.Formatter(log_format))
         logger.addHandler(fh)
 
     return logger

@@ -21,13 +21,7 @@ from rna_lib_design.settings import get_resources_path
 log = get_logger("CLI")
 
 
-# TODO add cli tool "list" to list all the available p5, p3, and common sequences
-# TODO add cli tool to list which barcode sets are available
-# TODO have checks for the library like diversity and size difference between sequences
 # TODO validate build str does it include everythingp ?
-# TODO list and determine the P5 and P3 code if used
-# TODO need to update primers
-# TODO add standard option if nothing is supplied for btype
 
 
 def get_preset_parameters(btype: str, barcode_name: str):
@@ -57,7 +51,10 @@ def setup_log_and_log_inputs(csv, preset, param_file, output, debug):
     log.info(f"Using csv: {csv}")
     log.info(f"Using output dir: {output}")
     log.info(f"Copying {csv} to {output}/input.csv")
-    shutil.copy(csv, f"{output}/input.csv")
+    try:
+        shutil.copy(csv, f"{output}/input.csv")
+    except:
+        pass
     if debug:
         log.info("Debug mode enabled")
     if preset is not None:
@@ -72,9 +69,25 @@ def is_valid_method(method_name):
         raise ValueError(f"Invalid method: {method_name}")
 
 
+# TODO check for edit distance of library?
+def validate_initial_library(csv):
+    df = pd.read_csv(csv)
+    log.info(f"csv has {len(df)} sequences")
+    min_len = df["seq"].str.len().min()
+    max_len = df["seq"].str.len().max()
+    avg_len = df["seq"].str.len().mean()
+    # max_len - min_len is greater than 10% of avg length error
+    if max_len - min_len > avg_len * 0.1:
+        raise ValueError(
+            "The library size difference is too large must be under 10% of the"
+            "average length"
+        )
+
+
 def run_method(method_name, csv, btype, param_file, output, args):
     os.makedirs(output, exist_ok=True)
     setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
+    validate_initial_library(csv)
     schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
     # setup parameters
     params = {}
@@ -203,9 +216,34 @@ def edit_distance(csv):
     """
     compute edit distance of library
     """
-    setup_log_and_log_inputs(csv, None, None)
+    setup_applevel_logger()
+    log.info(f"Using csv: {csv}")
     df = pd.read_csv(csv)
     log.info("edit distance:" + str(calc_edit_distance(df)))
+
+
+@cli.command()
+@cloup.argument("name", type=str)
+def list(name):
+    setup_applevel_logger()
+    seqs = {"p5": "p5_sequences", "p3": "p3_sequences", "loops": "loops"}
+    barcodes = {"helix_barcodes": "helices", "sstrand_barcodes": "sstrands"}
+    if name in seqs:
+        dir_path = get_resources_path() / f"named_seqs/rna/{seqs[name]}.csv"
+        df = pd.read_csv(dir_path)
+        log.info(
+            f"{name} sequences available\n"
+            + tabulate(df, headers="keys", tablefmt="psql", showindex=False)
+        )
+    elif name in barcodes:
+        dir_path = get_resources_path() / f"barcodes/{barcodes[name]}.csv"
+        df = pd.read_csv(dir_path)
+        log.info(
+            f"{name} sets available\n"
+            + tabulate(df, headers="keys", tablefmt="psql", showindex=False)
+        )
+    else:
+        raise ValueError(f"unknown name: {name}")
 
 
 if __name__ == "__main__":

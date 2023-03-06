@@ -256,7 +256,7 @@ class Designer:
             if s1 != s2 and ds not in ["(", ")", "."]:
                 barcode_score += 1
         if total_score > self.opts.allowed_ss_mismatch:
-            return "ss_mismatch"
+            return "ss_mismatches"
         if barcode_score > self.opts.allowed_ss_mismatch_barcodes:
             return "ss_mismatch_barcodes"
         return "SUCCESS"
@@ -341,7 +341,6 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
     :return: dataframe of designed sequences
     """
     log.info("starting design")
-    log.info(f"csv has {len(df_sequences)} sequences")
     # need to fix this here and not in the design object as it wont work with
     # multiprocessing
     if "name" not in df_sequences.columns:

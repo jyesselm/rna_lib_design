@@ -1,8 +1,9 @@
+colorlog
+click
+cloup
 pandas
 openpyxl
 numpy
-click
-cloup
 tabulate
 pyyaml
 jsonschema
