@@ -1,14 +1,17 @@
 import json
 import os
+import shutil
 import pandas as pd
 import cloup
+import yaml
+from tabulate import tabulate
 from cloup import option_group, option
 from pathlib import Path
 
 from rna_lib_design.design import (
     DesignOpts,
     design,
-    write_results_to_file,
+    write_output_dir,
 )
 from seq_tools import calc_edit_distance
 from rna_lib_design.logger import get_logger, setup_applevel_logger
@@ -49,18 +52,36 @@ def merge_dict(original_dict, new_dict):
     return original_dict
 
 
-def setup_log_and_log_inputs(csv, preset, param_file):
-    setup_applevel_logger()
+def setup_log_and_log_inputs(csv, preset, param_file, output, debug):
+    setup_applevel_logger(is_debug=debug, file_name=f"{output}/log.txt")
     log.info(f"Using csv: {csv}")
+    log.info(f"Using output dir: {output}")
+    log.info(f"Copying {csv} to {output}/input.csv")
+    shutil.copy(csv, f"{output}/input.csv")
+    if debug:
+        log.info("Debug mode enabled")
     if preset is not None:
         log.info(f"Using preset: {preset}")
     if param_file is not None:
         log.info(f"Using parameter file: {param_file}")
 
 
-def run_design(csv, schema_file, preset_file, param_file, num_processes):
+def is_valid_method(method_name):
+    methods = ["add_common", "single_barcode", "double_barcode", "triple_barcode"]
+    if method_name not in methods:
+        raise ValueError(f"Invalid method: {method_name}")
+
+
+def run_method(method_name, csv, btype, param_file, output, args):
+    os.makedirs(output, exist_ok=True)
+    setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
+    schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
+    # setup parameters
     params = {}
-    if preset_file is not None:
+    if btype is None:
+        preset_file = None
+    else:
+        preset_file = get_preset_parameters(btype.lower(), method_name)
         params = parse_parameters_from_file(preset_file, schema_file)
     if param_file is not None:
         if len(params) == 0:
@@ -68,41 +89,38 @@ def run_design(csv, schema_file, preset_file, param_file, num_processes):
         else:
             user_params = parse_parameters_from_file(param_file, schema_file)
             merge_dict(params, user_params)
+    log.info(f"Writing parameters to {output}/params.yml")
+    yaml.dump(params, open(f"{output}/params.yml", "w"))
+    # default to standard preset if no preset or param file is supplied
+    if preset_file is None and param_file is None:
+        log.info("No preset or param file supplied, using standard preset")
+        preset_file = get_resources_path() / "presets" / f"{method_name}_standard.yml"
+        params = parse_parameters_from_file(preset_file, schema_file)
     if len(params) == 0:
         raise ValueError("No parameters supplied")
     log.info(f"Using parameters:\n{json.dumps(params, indent=4)}")
     design_opts = DesignOpts(**params["design_opts"])
     df_seqs = pd.read_csv(csv)
-    df_results = design(
-        num_processes,
+    results = design(
+        args["num_processes"],
         df_seqs,
         params["build_str"],
         params["segments"],
         design_opts,
     )
-    return df_results
-
-
-def is_valid_method(method_name):
-    methods = ["single_barcode", "double_barcode", "triple_barcode"]
-    if method_name not in methods:
-        raise ValueError(f"Invalid method: {method_name}")
-
-
-def run_method(method_name, csv, btype, param_file, output, args):
-    setup_log_and_log_inputs(csv, btype, param_file)
-    schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
-    if btype is None:
-        preset_file = None
-    else:
-        preset_file = get_preset_parameters(btype.lower(), method_name)
-    if preset_file is None and param_file is None:
-        preset_file = get_resources_path() / "presets" / f"{method_name}_standard.yml"
-    results = run_design(
-        csv, schema_file, preset_file, param_file, args["num_processes"]
-    )
     df_results = results.df_results
-    write_results_to_file(df_results, Path("results"))
+    table = []
+    for key, value in results.failures.items():
+        if value > 0:
+            table.append([key, value])
+    if len(table) > 0:
+        log.info(
+            "summary of sequences discarded\n"
+            + tabulate(table, headers=["key", "value"], tablefmt="psql")
+        )
+    else:
+        log.info("no sequences discarded")
+    write_output_dir(df_results, Path("results"))
     if not args["skip_edit_dist"]:
         edit_dist = calc_edit_distance(df_results)
         log.info(f"the edit distance of lib is: {edit_dist}")
@@ -142,6 +160,9 @@ def main_options():
             help="number of processes to run simultaneously",
         ),
         option(
+            "--debug", is_flag=True, help="turn on debug logging for the application"
+        ),
+        option(
             "--skip-edit-dist", is_flag=True, help="skip the edit distance calculation"
         ),
     )
@@ -149,6 +170,10 @@ def main_options():
 
 @cloup.group()
 def cli():
+    """
+    This is a simple tool to generate barcodes for a library of RNAs to be ordered
+    as an DNA oligo library.
+    """
     pass
 
 
@@ -156,6 +181,9 @@ def cli():
 @cloup.argument("csv", type=cloup.Path(exists=True))
 @main_options()
 def barcode(csv, btype, param_file, output, **args):
+    """
+    adds a single barcode
+    """
     run_method("single_barcode", csv, btype, param_file, output, args)
 
 
@@ -163,12 +191,18 @@ def barcode(csv, btype, param_file, output, **args):
 @cloup.argument("csv", type=cloup.Path(exists=True))
 @main_options()
 def add_common(csv, btype, param_file, output, **args):
+    """
+    add common p5/p3 sequences
+    """
     run_method("add_common", csv, btype, param_file, output, args)
 
 
 @cli.command()
 @cloup.argument("csv", type=cloup.Path(exists=True))
 def edit_distance(csv):
+    """
+    compute edit distance of library
+    """
     setup_log_and_log_inputs(csv, None, None)
     df = pd.read_csv(csv)
     log.info("edit distance:" + str(calc_edit_distance(df)))

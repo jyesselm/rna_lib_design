@@ -4,7 +4,7 @@ from rna_lib_design.design import (
     parse_build_str,
     Designer,
 )
-from rna_lib_design.settings import get_resources_path
+from rna_lib_design.settings import get_resources_path, get_test_path
 
 
 class TestResources:

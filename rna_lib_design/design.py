@@ -1,5 +1,6 @@
 import multiprocessing
-import os
+from collections import Counter
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -107,7 +108,6 @@ class Designer:
         ]
         self.opts = DesignOpts()
         self.failures = {
-            "no_solution": 0,
             "high_ens_defect": 0,
             "ss_mismatches": 0,
             "ss_mismatches_barcodes": 0,
@@ -143,11 +143,7 @@ class Designer:
             df_results.at[i, "structure"] = results[1]
             df_results.at[i, "ens_defect"] = results[2]
             df_results.at[i, "mfe"] = results[3]
-        org_num = len(df_results)
         df_results = df_results[df_results["sequence"] != ""]
-        diff = org_num - len(df_results)
-        if diff > 0:
-            log.info(f"removed {diff} sequences that could not be designed")
         return DesignerResults(df_results, self.failures)
 
     def __setup_dataframe(self, df):
@@ -192,6 +188,7 @@ class Designer:
         best_r = FoldResults("", 999, 999, [])
         num_solutions = 0
         no_solution = True
+        fails = []
         for i in range(0, self.opts.max_attempts):
             sequence = seq_struct.sequence
             structure = seq_struct.structure
@@ -204,8 +201,9 @@ class Designer:
                     sequence = sequence.replace(rs, strand.sequence, 1)
                     structure = structure.replace(rs, strand.structure, 1)
             r = fold(sequence)
-            success = self.__score_design(structure, seq_struct.structure, r)
-            if not success:
+            result = self.__score_design(structure, seq_struct.structure, r)
+            if result != "SUCCESS":
+                fails.append(result)
                 continue
             no_solution = False
             if r.ens_defect < best_r.ens_defect:
@@ -216,7 +214,8 @@ class Designer:
             if num_solutions >= self.opts.max_solutions:
                 break
         if no_solution:
-            self.failures["no_solution"] += 1
+            count = Counter(fails)
+            self.failures[count.most_common(1)[0][0]] += 1
             log.debug("no design found for sequence: " + seq_struct.sequence)
         if self.opts.score_method == "increase":
             diff = best_r.ens_defect - org_ens_defect
@@ -244,9 +243,9 @@ class Designer:
             best_r.mfe,
         ]
 
-    def __score_design(self, structure, design_structure, r):
+    def __score_design(self, structure, design_structure, r) -> str:
         if r.dot_bracket == structure:
-            return True
+            return "SUCCESS"
         total_score = 0
         barcode_score = 0
         for _, (s1, s2, ds) in enumerate(
@@ -257,12 +256,10 @@ class Designer:
             if s1 != s2 and ds not in ["(", ")", "."]:
                 barcode_score += 1
         if total_score > self.opts.allowed_ss_mismatch:
-            self.failures["ss_mismatches"] += 1
-            return False
+            return "ss_mismatch"
         if barcode_score > self.opts.allowed_ss_mismatch_barcodes:
-            self.failures["ss_mismatches_barcodes"] += 1
-            return False
-        return True
+            return "ss_mismatch_barcodes"
+        return "SUCCESS"
 
     def __get_build_up(self, num_seqs, build_str, params):
         parser = SequenceStructureSetParser()
@@ -378,21 +375,22 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
         return DesignerResults(pd.concat(dfs), failures)
 
 
-# TODO use filename as opool name?
-def write_results_to_file(df: pd.DataFrame, path) -> None:
+def write_output_dir(df: pd.DataFrame, output_dir) -> None:
     """
     writes out of the results of a design run to a directory
     :param df: dataframe of results
-    :param path: path to write to output to
     """
-    os.makedirs(path, exist_ok=True)
-    log.info(f"{path}/results-all.csv contains all information generated from run")
-    df.to_csv(f"{path}/results-all.csv", index=False)
+    if not Path(output_dir).exists():
+        raise ValueError(f"output path {output_dir} does not exist")
     log.info(
-        f"{path}/results-rna.csv contains only information related to the RNA sequence"
+        f"{output_dir}/results-all.csv contains all information generated from run"
+    )
+    df.to_csv(f"{output_dir}/results-all.csv", index=False)
+    log.info(
+        f"{output_dir}/results-rna.csv contains only information related to the RNA sequence"
     )
     df = df[["name", "sequence", "structure", "ens_defect", "mfe"]]
-    df.to_csv(f"{path}/results-rna.csv", index=False)
+    df.to_csv(f"{output_dir}/results-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
     df_sub = to_dna(df_sub)
     # get primer for sequencing
@@ -401,10 +399,10 @@ def write_results_to_file(df: pd.DataFrame, path) -> None:
         log.warning("no p5 sequence found")
     else:
         log.info("p5 seq -> " + str(p5_seq))
-    to_fasta(df_sub, f"{path}/results.fasta")
+    to_fasta(df_sub, f"{output_dir}/results.fasta")
     df_sub = to_dna_template(df_sub)
-    df_sub.to_csv(f"{path}/results-dna.csv", index=False)
+    df_sub.to_csv(f"{output_dir}/results-dna.csv", index=False)
     df_sub = df_sub.rename(columns={"name": "Pool name", "sequence": "Sequence"})
-    df_sub["Pool name"] = Path(path).stem
-    df_sub.to_excel(f"{path}/results-opool.xlsx", index=False)
-    df_sub.to_csv(f"{path}/results-opool.csv", index=False)
+    df_sub["Pool name"] = Path(output_dir).stem
+    df_sub.to_excel(f"{output_dir}/results-opool.xlsx", index=False)
+    df_sub.to_csv(f"{output_dir}/results-opool.csv", index=False)

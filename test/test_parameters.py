@@ -46,3 +46,9 @@ class TestValidateSegmentParameters:
             validate_segment_parameters(params)
         except ValueError:
             pytest.fail("Unexpected ValueError")
+
+    def test_real_cases(self):
+        path = get_resources_path() / "presets" / "single_barcode_helix.yml"
+        params = yaml.safe_load(path.open())
+        for segment in params["segments"].values():
+            validate_segment_parameters(segment)

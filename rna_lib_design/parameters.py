@@ -45,8 +45,8 @@ def validate_parameters(params, schema):
     # check to make sure each segment dict is valid
     if "segments" not in params:
         return
-    # for segment in params["segments"]:
-    #    validate_segment_parameters(segment)
+    for segment in params["segments"].values():
+        validate_segment_parameters(segment)
 
 
 def validate_segment_parameters(params):

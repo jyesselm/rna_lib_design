@@ -52,18 +52,45 @@ def test_add_common():
     shutil.rmtree("results")
 
 
-def _test_barcode():
-    runner = CliRunner()
-    result = runner.invoke(
-        cli.cli,
-        [
-            "barcode",
-            "-t",
-            "helix",
-            str(TEST_RESOURCES / "libs/minittr2.csv"),
-        ],
-    )
-    assert result.exit_code == 0
-    assert Path("results").is_dir()
-    shutil.rmtree("results")
+class TestBarcode:
+    def test_standard(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+    
+    def test_helix(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype", "helix",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+    
+    def test_5p_hairpin(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype", "5p_hairpin",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
  

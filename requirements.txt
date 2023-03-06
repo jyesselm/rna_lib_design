@@ -6,6 +6,7 @@ cloup
 tabulate
 pyyaml
 jsonschema
+tabulate
 # written by our group
 vienna
 rna_seq_tools @ git+https://github.com/jyesselm/seq_tools@main

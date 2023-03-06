@@ -1,4 +1,4 @@
-build_str: "P5-BARCODE1A-SOI-BARCODE1-P3EXT-P3"
+build_str: "P5-BARCODE1A-SOI-BARCODE1B-P3EXT-P3"
 segments:
   P5:
     name: "uucg_p5_rev_primer"
