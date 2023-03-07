@@ -391,13 +391,13 @@ def write_output_dir(df: pd.DataFrame, output_dir) -> None:
     df = df[["name", "sequence", "structure", "ens_defect", "mfe"]]
     df.to_csv(f"{output_dir}/results-rna.csv", index=False)
     df_sub = df[["name", "sequence"]].copy()
-    df_sub = to_dna(df_sub)
     # get primer for sequencing
     p5_seq = get_seq_fwd_primer(df_sub)
     if p5_seq is None:
         log.warning("no p5 sequence found")
     else:
         log.info("p5 seq -> " + str(p5_seq))
+    df_sub = to_dna(df_sub)
     to_fasta(df_sub, f"{output_dir}/results.fasta")
     df_sub = to_dna_template(df_sub)
     df_sub.to_csv(f"{output_dir}/results-dna.csv", index=False)

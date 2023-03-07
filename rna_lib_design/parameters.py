@@ -3,9 +3,9 @@ import json
 import jsonschema
 from jsonschema import Draft4Validator, validators
 from rna_lib_design.settings import get_py_path
+from rna_lib_design.logger import get_logger
 
-
-# TODO validate possible combination of key for segments parameters
+log = get_logger("PARAMETERS")
 
 
 def extend_with_default(validator_class):
@@ -45,11 +45,13 @@ def validate_parameters(params, schema):
     # check to make sure each segment dict is valid
     if "segments" not in params:
         return
-    for segment in params["segments"].values():
+    for name, segment in params["segments"].items():
+        log.debug(name)
         validate_segment_parameters(segment)
 
 
 def validate_segment_parameters(params):
+    log.debug(params)
     if "m_type" in params:
         if "sequence" in params or "structure" in params:
             raise ValueError(
@@ -71,8 +73,8 @@ def validate_segment_parameters(params):
             raise ValueError("Cannot specify m_type for a segment with name")
     else:
         raise ValueError("Must specify either m_type, sequence, or name for a segment")
-    if "m_type" in params and params["m_type"] == "HAIRPIN":
-        print("made it")
+    # if "m_type" in params and params["m_type"] == "HAIRPIN":
+    #    print("made it")
 
 
 def parse_parameters_from_file(param_file, schema_file):

@@ -1,7 +1,9 @@
-build_str: "P5-BARCODE1-SOI-P3EXT-P3"
+build_str: "P5-SOI-BARCODE1-P3EXT-P3"
 segments:
   P5:
     name: "uucg_p5_rev_primer"
+  P3:
+    name: "rt_tail"
   BARCODE1:
     m_type : "HAIRPIN"
     loop_seq: "GCGAGUAGC"
@@ -12,6 +14,4 @@ segments:
   P3EXT:
     sequence: "AC"
     structure: ".."
-  P3:
-    name: "rt_tail"
 

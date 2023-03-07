@@ -65,32 +65,65 @@ class TestBarcode:
         assert result.exit_code == 0
         assert Path("results").is_dir()
         shutil.rmtree("results")
-    
+
     def test_helix(self):
         runner = CliRunner()
         result = runner.invoke(
             cli.cli,
             [
                 "barcode",
-                "--btype", "helix",
+                "--btype",
+                "helix",
                 str(TEST_RESOURCES / "libs/minittr2.csv"),
             ],
         )
         assert result.exit_code == 0
         assert Path("results").is_dir()
         shutil.rmtree("results")
-    
+
     def test_5p_hairpin(self):
         runner = CliRunner()
         result = runner.invoke(
             cli.cli,
             [
                 "barcode",
-                "--btype", "5p_hairpin",
+                "--btype",
+                "5p_hairpin",
                 str(TEST_RESOURCES / "libs/minittr2.csv"),
             ],
         )
         assert result.exit_code == 0
         assert Path("results").is_dir()
         shutil.rmtree("results")
- 
+
+    def test_3p_hairpin(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype",
+                "3p_hairpin",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+
+    def test_output(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--output",
+                "test2",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("test2").is_dir()
+        shutil.rmtree("test2")
+
+    

@@ -27,6 +27,8 @@ log = get_logger("CLI")
 def get_preset_parameters(btype: str, barcode_name: str):
     full_name = f"{barcode_name}_{btype}.yml"
     if not (get_resources_path() / "presets" / full_name).exists():
+        presets = get_resources_path() / "presets").glob(f"{barcode_name}*.yml")
+        log.error(presets)
         raise ValueError(f"Invalid barcode type: {btype}")
     return get_resources_path() / "presets" / full_name
 
@@ -73,9 +75,9 @@ def is_valid_method(method_name):
 def validate_initial_library(csv):
     df = pd.read_csv(csv)
     log.info(f"csv has {len(df)} sequences")
-    min_len = df["seq"].str.len().min()
-    max_len = df["seq"].str.len().max()
-    avg_len = df["seq"].str.len().mean()
+    min_len = df["sequence"].str.len().min()
+    max_len = df["sequence"].str.len().max()
+    avg_len = df["sequence"].str.len().mean()
     # max_len - min_len is greater than 10% of avg length error
     if max_len - min_len > avg_len * 0.1:
         raise ValueError(
@@ -84,7 +86,29 @@ def validate_initial_library(csv):
         )
 
 
+
+def log_failed_sequences(results):
+    df_results = results.df_results
+    failures = results.failures
+    table = []
+    total = 0
+    for key, value in failures.items():
+        if value > 0:
+            table.append([key, value])
+        total += value
+    if len(table) > 0:
+        log.info(
+            "summary of sequences discarded\n"
+            + tabulate(table, headers=["key", "value"], tablefmt="psql")
+        )
+        log.info(f"total sequences discarded: {total}")
+        log.info(f"total remaining sequences: {len(df_results)}")
+    else:
+        log.info("no sequences discarded")
+
+
 def run_method(method_name, csv, btype, param_file, output, args):
+    is_valid_method(method_name)
     os.makedirs(output, exist_ok=True)
     setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
     validate_initial_library(csv)
@@ -121,19 +145,9 @@ def run_method(method_name, csv, btype, param_file, output, args):
         params["segments"],
         design_opts,
     )
+    log_failed_sequences(results)
     df_results = results.df_results
-    table = []
-    for key, value in results.failures.items():
-        if value > 0:
-            table.append([key, value])
-    if len(table) > 0:
-        log.info(
-            "summary of sequences discarded\n"
-            + tabulate(table, headers=["key", "value"], tablefmt="psql")
-        )
-    else:
-        log.info("no sequences discarded")
-    write_output_dir(df_results, Path("results"))
+    write_output_dir(df_results, Path(output))
     if not args["skip_edit_dist"]:
         edit_dist = calc_edit_distance(df_results)
         log.info(f"the edit distance of lib is: {edit_dist}")
@@ -193,6 +207,16 @@ def cli():
 @cli.command()
 @cloup.argument("csv", type=cloup.Path(exists=True))
 @main_options()
+def add_common(csv, btype, param_file, output, **args):
+    """
+    add common p5/p3 sequences
+    """
+    run_method("add_common", csv, btype, param_file, output, args)
+
+
+@cli.command()
+@cloup.argument("csv", type=cloup.Path(exists=True))
+@main_options()
 def barcode(csv, btype, param_file, output, **args):
     """
     adds a single barcode
@@ -203,11 +227,11 @@ def barcode(csv, btype, param_file, output, **args):
 @cli.command()
 @cloup.argument("csv", type=cloup.Path(exists=True))
 @main_options()
-def add_common(csv, btype, param_file, output, **args):
+def barcode2(csv, btype, param_file, output, **args):
     """
-    add common p5/p3 sequences
+    adds two barcodes
     """
-    run_method("add_common", csv, btype, param_file, output, args)
+    run_method("double_barcode", csv, btype, param_file, output, args)
 
 
 @cli.command()
