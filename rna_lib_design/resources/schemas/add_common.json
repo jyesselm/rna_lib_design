@@ -1,0 +1,130 @@
+{
+    "type": "object",
+    "properties": {
+        "build_str": {
+            "type": "string",
+            "default": "P5-P5EXT-SOI-P3EXT-P3"
+        },
+        "trim_5p": {
+            "type": "integer"
+        },
+        "trim_3p": {
+            "type": "integer"
+        },
+        "design_opts": {
+            "type": "object",
+            "properties": {
+                "increase_ens_defect": {
+                    "type": "number",
+                    "default": 2.0
+                },
+                "max_ens_defect": {
+                    "type": "number",
+                    "default": 5.0
+                },
+                "max_attempts": {
+                    "type": "integer",
+                    "default": 10
+                },
+                "max_solutions": {
+                    "type": "integer",
+                    "default": 10
+                },
+                "score_method": {
+                    "type": "string",
+                    "default": "increase"
+                },
+                "allowed_ss_mismatch": {
+                    "type": "integer",
+                    "default": 2
+                },
+                "allowed_ss_mismatch_barcodes": {
+                    "type": "integer",
+                    "default": 2
+                }
+            },
+            "default": {},
+            "additionalProperties": false,
+            "required": []
+        },
+        "segments": {
+            "type": "object",
+            "properties": {
+                "P5": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "sequence": {
+                            "type": "string"
+                        },
+                        "structure": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {},
+                    "additionalProperties": false,
+                    "required": []
+                },
+                "P3": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "sequence": {
+                            "type": "string"
+                        },
+                        "structure": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {},
+                    "additionalProperties": false,
+                    "required": []
+                },
+                "P5EXT": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "sequence": {
+                            "type": "string"
+                        },
+                        "structure": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {},
+                    "additionalProperties": false,
+                    "required": []
+                },
+                "P3EXT": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "sequence": {
+                            "type": "string"
+                        },
+                        "structure": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {},
+                    "additionalProperties": false,
+                    "required": []
+                }
+            },
+            "default": {},
+            "additionalProperties": false,
+            "required": []
+        }
+    },
+    "default": {},
+    "additionalProperties": false,
+    "required": []
+}

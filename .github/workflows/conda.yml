@@ -1,0 +1,34 @@
+name: install with conda
+on: [push]
+
+jobs:
+  create-env:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v2
+
+      - name: create conda env
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          channels: conda-forge,bioconda,defaults
+          auto-activate-base: true
+
+      - name: install vienna rna
+        run: |
+          conda install viennarna
+
+      - name: install vienna package and run pytest
+        run: |
+          pip install .
+          pytest

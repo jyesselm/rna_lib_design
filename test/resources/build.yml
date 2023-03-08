@@ -1,0 +1,28 @@
+build_str: "P5-BARCODE1A-SOI-BARCODE1-P3"
+trim_5p : -999
+trim_3p: -999
+design_opts:
+  increase_ens_defect : 2.0
+  max_ens_defect: 5.0
+  max_attempts: 10
+  max_solutions: 10
+  score_method: "increase"
+segments:
+  P5:
+    name: ""
+    sequence: ""
+    structure: ""
+  P3:
+    name: ""
+    sequence: ""
+    structure: ""
+  BARCODE1:
+    m_type : ""
+    sequence: ""
+    structure: ""
+    length : -999
+  P3EXT:
+    name: ""
+    sequence: ""
+    structure: ""
+

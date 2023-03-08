@@ -1,152 +1,153 @@
 import pandas as pd
-from rna_lib_design import structure_set, settings, structure, testing
+import pytest
+
+from rna_lib_design.settings import get_resources_path, get_test_path
+from rna_lib_design.structure_set import (
+    SequenceStructure,
+    SequenceStructureSet,
+    SequenceStructureSetParser,
+    get_named_seq_structs,
+    get_named_seq_struct,
+)
+
+TEST_RESOURCES = get_test_path() / "resources"
 
 
-def test_sstrand_structure_set():
-    struct_set = testing.get_test_hairpin()
-    struct_1 = struct_set.get_random()[0]
-    struct_set.set_used()
-    struct_2 = struct_set.get_random()[0]
-    # should not recieve the same structure twice
-    assert struct_1 != struct_2
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    rna_struct_new = struct_set.apply_random(rna_struct)
-    pos = struct_set.get_current_pos()
-    struct_3 = struct_set.get(pos)[0]
-    assert rna_struct_new == rna_struct + struct_3
-    assert rna_struct_new == struct_set.apply(rna_struct, pos)
+class TestResources:
+    @staticmethod
+    def get_test_sstrand():
+        csv_path = TEST_RESOURCES / "barcodes" / "sstrand.csv"
+        return SequenceStructureSet.from_csv(csv_path)
 
 
-def test_helix_structure_set():
-    struct_set = testing.get_test_helices()
-    structs = struct_set.get_random()
-    struct_1 = structs[0] + structs[1]
-    struct_set.set_used()
-    structs = struct_set.get_random()
-    struct_2 = structs[0] + structs[1]
-    assert struct_1 != struct_2
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    rna_struct_new = struct_set.apply_random(rna_struct)
-    pos = struct_set.get_current_pos()
-    structs = struct_set.get(pos)
-    assert rna_struct_new == structs[0] + rna_struct + structs[1]
-    assert rna_struct_new == struct_set.apply(rna_struct, pos)
+class TestSequenceStructureSet:
+    def test_init(self):
+        ss1 = SequenceStructure("ATCG", "((((")
+        ss2 = SequenceStructure("CGAT", "))))")
+        sss = SequenceStructureSet([ss1, ss2])
+        assert len(sss.seqstructs) == 2
+        assert not any(sss.used)
+        assert not sss.allow_duplicates
+
+    def test_from_single(self):
+        ss = SequenceStructure("ATCG", "((((")
+        sss = SequenceStructureSet.from_single(ss)
+        assert len(sss.seqstructs) == 1
+        assert not any(sss.used)
+        assert sss.allow_duplicates
+
+    def test_get_random(self):
+        ss1 = SequenceStructure("ATCG", "((((")
+        ss2 = SequenceStructure("CGAT", "))))")
+        sss = SequenceStructureSet([ss1, ss2])
+        sec_struct = sss.get_random()
+        assert sec_struct in [ss1, ss2]
+        sss.set_used(ss1)
+        assert any(sss.used)
+
+    def test_set_used(self):
+        ss1 = SequenceStructure("ATCG", "((((")
+        ss2 = SequenceStructure("CGAT", "))))")
+        sss = SequenceStructureSet([ss1, ss2])
+        sss.set_used(ss1)
+        assert sss.used[0]
+
+    def test_set_last_used(self):
+        ss1 = SequenceStructure("ATCG", "((((")
+        ss2 = SequenceStructure("CGAT", "))))")
+        sss = SequenceStructureSet([ss1, ss2])
+        sss.get_random()
+        sss.set_last_used()
+        assert sss.used[sss.last]
+
+    def test_from_csv(self):
+        csv_path = get_resources_path() / "barcodes/helices/len_1/md_0_gu_0_0.csv"
+        sss = SequenceStructureSet.from_csv(csv_path)
+        assert len(sss.seqstructs) == 4
+        assert not any(sss.used)
+        assert not sss.allow_duplicates
+
+    # old tests from version 1.0
+    def test_sstrand_structure_set(self):
+        struct_set = TestResources.get_test_sstrand()
+        struct_1 = struct_set.get_random()
+        struct_set.set_last_used()
+        struct_2 = struct_set.get_random()
+        # should not recieve the same structure twice
+        assert struct_1 != struct_2
+        seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
+        seq_struct_applied = struct_1 + seq_struct
+        assert seq_struct_applied.structure == "......(((....)))"
 
 
-def test_hairpin_structure_set():
-    struct_set = testing.get_test_hairpin()
-    struct_1 = struct_set.get_random()[0]
-    struct_set.set_used()
-    struct_2 = struct_set.get_random()[0]
-    assert struct_1 != struct_2
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    rna_struct_new = struct_set.apply_random(rna_struct)
-    pos = struct_set.get_current_pos()
-    struct_3 = struct_set.get(pos)[0]
-    assert rna_struct_new == rna_struct + struct_3
-    assert rna_struct_new == struct_set.apply(rna_struct, pos)
+class TestSequenceStructureSetFromParams:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = SequenceStructureSetParser()
+
+    def test_helix(self):
+        params = {"H1": {"m_type": "HELIX", "gu": True, "length": "5-6"}}
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict["H1"]) == 27
+
+    def test_sstrand(self):
+        params = {"SS1": {"m_type": "SSTRAND", "length": "5"}}
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict["SS1"]) == 32
+
+    def test_hairpin(self):
+        params = {
+            "HP1": {
+                "m_type": "HAIRPIN",
+                "length": "5",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
+            }
+        }
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict["HP1"]) == 11
+        assert len(set_dict["HP1"].get_random()) == 18
+
+    def test_single(self):
+        params = {
+            "SS1": {
+                "sequence": "CAAAG",
+                "structure": "(...)",
+            }
+        }
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict["SS1"]) == 1
+        assert len(set_dict["SS1"].get_random()) == 5
+
+    def test_complex_parse(self):
+        params = {
+            "H1": {"m_type": "HELIX", "gu": True, "length": "5-6"},
+            "SS1": {"m_type": "SSTRAND", "length": "5"},
+            "HP1": {
+                "m_type": "HAIRPIN",
+                "length": "5",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
+            },
+        }
+        set_dict = self.parser.parse(10, params)
+        assert len(set_dict) == 3
+        assert len(set_dict["H1"].seqstructs) == 27
+        assert len(set_dict["SS1"].seqstructs) == 32
+        assert len(set_dict["HP1"].seqstructs) == 11
 
 
-def test_hairpin_structure_set_no_buffer():
-    hp_set = testing.get_test_hairpin()
-    hp_set.set_buffer(None)
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    rna_struct_new = hp_set.apply(rna_struct, 0)
-    assert rna_struct_new.dot_bracket == "(((....)))(((((((....)))))))"
+class TestNamedSequenceStructure:
+    def test_get_all(self):
+        df = get_named_seq_structs()
+        df_sub = df[df["name"] == "uucg_p5_rev_primer"]
+        assert len(df_sub) == 1
 
+    def test_get_one(self):
+        ss = get_named_seq_struct("uucg_p5_rev_primer")
+        assert ss.sequence == "GGAACAGCACUUCGGUGCAAA"
+        assert ss.structure == "......((((....))))..."
 
-def test_single_structure_set():
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    struct_set = structure_set.get_single_struct_set(
-        rna_struct, structure_set.AddType.RIGHT
-    )
-    struct_1 = struct_set.get_random()[0]
-    struct_set.set_used()
-    struct_2 = struct_set.get_random()[0]
-    assert struct_1 == struct_2
-    pos = struct_set.get_current_pos()
-    struct_3 = struct_set.get(pos)[0]
-    rna_struct_new = struct_set.apply_random(rna_struct)
-    assert rna_struct_new == rna_struct + struct_3
-    assert rna_struct_new == struct_set.apply(rna_struct, pos)
-
-
-def test_apply():
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    struct_set = testing.get_test_helices()
-    new_struct = structure_set.apply([struct_set], rna_struct)
-    assert rna_struct != new_struct
-
-
-def test_apply_2():
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    sets = [testing.get_test_helices(), testing.get_test_helices()]
-    new_struct = structure_set.apply(sets, rna_struct)
-    assert len(new_struct) == 34
-
-
-def test_apply_blank():
-    rna_struct = structure.rna_structure("", "")
-    struct_set = testing.get_test_helices()
-    new_struct = structure_set.apply([struct_set], rna_struct)
-
-
-def test_get_helices():
-    struct_set = structure_set.get_optimal_helix_set(5, 10)
-    assert len(struct_set) > 10
-    structs = struct_set.get(0)
-    assert len(structs[0]) == 5
-
-
-def test_get_hairpins():
-    loop = structure.rna_structure("GAAAAC", "(....)")
-    hp_set = structure_set.get_optimal_hairpin_set(
-        5, loop, 10, structure_set.AddType.RIGHT
-    )
-    assert len(hp_set) > 10
-    struct = hp_set.get(0)[0]
-    assert len(struct) == 19
-    hp_set.set_buffer(None)
-    struct = hp_set.get(0)[0]
-    assert len(struct) == 16
-
-
-def test_get_sstrands():
-    struct_set = structure_set.get_optimal_sstrand_set(5, 10)
-    assert len(struct_set) > 10
-    struct = struct_set.get(0)[0]
-    assert len(struct) == 5
-    assert struct.dot_bracket == "....."
-
-
-def test_get_common_seq_structure_set():
-    struct_set = structure_set.get_common_seq_structure_set(
-        "ref_hairpin_5prime"
-    )
-    assert len(struct_set) == 1
-
-
-def test_split_helices():
-    struc_set = testing.get_test_helices()
-    struc_sets = struc_set.split(3)
-    assert len(struc_sets) == 3
-    helix = struc_sets[0].get_random()
-    assert len(helix[0]) == 6
-
-
-def test_split_single():
-    rna_struct = structure.rna_structure("GGGAAAACCC", "(((....)))")
-    struct_set = structure_set.get_single_struct_set(
-        rna_struct, structure_set.AddType.RIGHT
-    )
-    struct_sets = struct_set.split(10)
-    struct_1 = struct_sets[0].get_random()[0]
-    struct_set.set_used()
-    struct_2 = struct_sets[0].get_random()[0]
-    assert struct_1 == struct_2
-
-
-def test_split_hairpin():
-    struc_set = testing.get_test_hairpin(structure_set.AddType.RIGHT)
-    struc_sets = struc_set.split(3)
-    assert len(struc_sets[0].get_random()[0]) == 21
+    def test_get_one_not_found(self):
+        with pytest.raises(ValueError):
+            get_named_seq_struct("not_a_real_name")

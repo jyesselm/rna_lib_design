@@ -1,0 +1,16 @@
+build_str: "P5-BARCODE1-SOI-P3EXT-P3"
+design_opts:
+  # allow for extra ens_defect since single strand
+  increase_ens_defect : 4.0
+segments:
+  P5:
+    name: "uucg_p5_rev_primer"
+  P3:
+    name: "rt_tail"
+  BARCODE1:
+    m_type : "SSTRAND"
+    length : 6
+  P3EXT:
+    sequence: "AC"
+    structure: ".."
+

@@ -1,180 +1,129 @@
 import pytest
 import shutil
+from pathlib import Path
 import pandas as pd
+
 from click.testing import CliRunner
-from rna_lib_design.cli import CLIParser
+from seq_tools import has_5p_sequence, has_3p_sequence
 from rna_lib_design import cli
-from rna_lib_design import testing
-
-TEST_RESOURCES = testing.TEST_RESOURCES
+from rna_lib_design.settings import get_resources_path, get_test_path
 
 
-def test_setup_dataframe():
-    path = TEST_RESOURCES + "opool_final_2.csv"
-    args = {"csv": path, "trim_5p": 0, "trim_3p": 0}
-    df = CLIParser.get_dataframe(args)
-    assert len(df) == 2
-    assert (
-        df.loc[0]["sequence"]
-        == "GAUAUGGAUAGAGUAAGAGAGAUGGAAGUCUCAGGGGAAACUUUGAGAUGGACGGUUUACAAGUUGUCCUAAGUC"
-    )
+TEST_RESOURCES = get_test_path() / "resources"
 
 
-def test_setup_dataframe_2():
-    path = TEST_RESOURCES + "opool_final.csv"
-    args = {"csv": path, "trim_5p": 0, "trim_3p": 0}
-    df = CLIParser.get_dataframe(args)
-    assert "structure" in df
-    assert "mfe" in df
-
-
-def test_setup_dataframe_3():
-    path = TEST_RESOURCES + "opool_final_2.csv"
-    args = {"csv": path, "trim_5p": 2, "trim_3p": 2}
-    df = CLIParser.get_dataframe(args)
-    assert (
-        df.loc[0]["sequence"]
-        == "UAUGGAUAGAGUAAGAGAGAUGGAAGUCUCAGGGGAAACUUUGAGAUGGACGGUUUACAAGUUGUCCUAAG"
-    )
-
-
-def test_get_p5_default():
-    args = {
-        "no_p5": False,
-        "p5_sequence": None,
-        "p5_structure": None,
-        "p5_name": None,
-    }
-    p5 = CLIParser.get_p5(args)
-    struct = p5.get_random()[0]
-    assert struct.sequence == "GGAAGAUCGAGUAGAUCAAA"
-    assert struct.dot_bracket == "....((((.....))))..."
-
-
-def test_get_p5_by_name():
-    args = {
-        "no_p5": False,
-        "p5_sequence": None,
-        "p5_structure": None,
-        "p5_name": "uucg_p5_rev_primer",
-    }
-    p5 = CLIParser.get_p5(args)
-    struct = p5.get_random()[0]
-    assert struct.sequence == "GGAACAGCACUUCGGUGCAAA"
-    assert struct.dot_bracket == "......((((....))))..."
-
-
-def test_get_p5_by_seq():
-    args = {
-        "no_p5": False,
-        "p5_sequence": "GGAACAGCACUUCGGUGCAAA",
-        "p5_structure": None,
-        "p5_name": None,
-    }
-    p5 = CLIParser.get_p5(args)
-    struct = p5.get_random()[0]
-    assert struct.sequence == "GGAACAGCACUUCGGUGCAAA"
-    assert struct.dot_bracket == "......((((....))))..."
-
-
-def test_get_p5_raises_supplied_name_and_seq():
-    args = {
-        "no_p5": False,
-        "p5_sequence": "GGAACAGCACUUCGGUGCAAA",
-        "p5_structure": None,
-        "p5_name": "uucg_p5_rev_primer",
-    }
-    with pytest.raises(ValueError):
-        CLIParser.get_p5(args)
-
-
-def test_get_p3_default():
-    args = {
-        "no_p3": False,
-        "p3_sequence": None,
-        "p3_structure": None,
-        "p3_name": None,
-    }
-    p3 = CLIParser.get_p3(args)
-    struct = p3.get_random()[0]
-    assert struct.sequence == "AAAGAAACAACAACAACAAC"
-
-
-def test_get_p5_buffer_default():
-    args = {"p5b_sequence": None, "p5b_structure": None}
-    p5b = CLIParser.get_p5_buffer(args)
-    assert p5b is None
-
-
-def test_get_p5_buffer_sequence():
-    args = {"p5b_sequence": "AC", "p5b_structure": None}
-    p5b = CLIParser.get_p5_buffer(args)
-    struct = p5b.get_random()[0]
-    assert struct.sequence == "AC"
-    assert struct.dot_bracket == ".."
-
-
-def test_get_p5_buffer_structure():
-    args = {"p5b_sequence": "AC", "p5b_structure": "()"}
-    p5b = CLIParser.get_p5_buffer(args)
-    struct = p5b.get_random()[0]
-    assert struct.sequence == "AC"
-    assert struct.dot_bracket == "()"
-
-
-def test_get_loop_default():
-    args = {"loop_sequence": None, "loop_structure": None, "loop_name": None}
-    loop = CLIParser.get_loop(args)
-    assert loop.sequence == "CUUCGG"
-    assert loop.dot_bracket == "(....)"
-
-
-def test_get_loop_sequence():
-    args = {
-        "loop_sequence": "CGCGAGUAGCG",
-        "loop_structure": None,
-        "loop_name": None,
-    }
-    loop = CLIParser.get_loop(args)
-    assert loop.sequence == "CGCGAGUAGCG"
-    assert loop.dot_bracket == "(((.....)))"
-
-
-def test_get_loop_structure():
-    args = {
-        "loop_sequence": "CGAGUAG",
-        "loop_structure": "(.....)",
-        "loop_name": None,
-    }
-    loop = CLIParser.get_loop(args)
-    assert loop.sequence == "CGAGUAG"
-    assert loop.dot_bracket == "(.....)"
-
-
-def test_barcode_default():
+def test_cli():
     runner = CliRunner()
-    args = [
-        "barcode",
-        TEST_RESOURCES + "opool_final_2.csv",
-    ]
-    result = runner.invoke(cli.cli, args, prog_name="helix_barcode")
+    result = runner.invoke(cli.cli, ["--help"])
     assert result.exit_code == 0
-    df = pd.read_csv("results/results-opool.csv")
-    assert len(df) == 2
+    assert "Show this message and exit." in result.output
+
+
+def test_edit_distance():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "edit-distance",
+            str(TEST_RESOURCES / "libs/minittr2.csv"),
+        ],
+    )
+    assert result.exit_code == 0
+
+
+def test_add_common():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "add-common",
+            str(TEST_RESOURCES / "libs/minittr2.csv"),
+        ],
+    )
+    assert result.exit_code == 0
+    assert Path("results").is_dir()
+    assert Path("results/results-rna.csv").is_file()
+    assert Path("results/results-dna.csv").is_file()
+    df_rna = pd.read_csv("results/results-rna.csv")
+    assert has_5p_sequence(df_rna, "GGAACAGCACUUCGGUGCAAA")
+    assert has_3p_sequence(df_rna, "AAAGAAACAACAACAACAAC")
+    df_dna = pd.read_csv("results/results-dna.csv")
+    assert has_5p_sequence(df_dna, "TTCTAATACGACTCACTATA")
     shutil.rmtree("results")
 
 
-def test_barcode_hairpin():
-    runner = CliRunner()
-    args = [
-        "barcode",
-        "--btype",
-        "hairpin",
-        TEST_RESOURCES + "opool_final_2.csv",
-    ]
-    result = runner.invoke(cli.cli, args, prog_name="hairpin_barcode")
-    assert result.exit_code == 0
-    df = pd.read_csv("results/results-rna.csv")
-    assert df.loc[0]["sequence"].find('CUUCGG') != -1
-    shutil.rmtree("results")
+class TestBarcode:
+    def test_standard(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
 
+    def test_helix(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype",
+                "helix",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+
+    def test_5p_hairpin(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype",
+                "5p_hairpin",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+
+    def test_3p_hairpin(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--btype",
+                "3p_hairpin",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("results").is_dir()
+        shutil.rmtree("results")
+
+    def test_output(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "barcode",
+                "--output",
+                "test2",
+                str(TEST_RESOURCES / "libs/minittr2.csv"),
+            ],
+        )
+        assert result.exit_code == 0
+        assert Path("test2").is_dir()
+        shutil.rmtree("test2")
+
+    

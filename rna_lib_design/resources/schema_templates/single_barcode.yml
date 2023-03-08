@@ -1,0 +1,38 @@
+build_str: "P5-P5EXT-BARCODE1A-SOI-BARCODE1-P3EXT-P3"
+trim_5p : -999
+trim_3p: -999
+design_opts:
+  increase_ens_defect : 2.0
+  max_ens_defect: 5.0
+  max_attempts: 10
+  max_solutions: 10
+  score_method: "increase"
+  allowed_ss_mismatch: 2
+  allowed_ss_mismatch_barcodes: 2
+segments:
+  P5:
+    name: ""
+    sequence: ""
+    structure: ""
+  P5EXT:
+    name: ""
+    sequence: ""
+    structure: ""
+  BARCODE1:
+    m_type : ""
+    loop_seq: ""
+    loop_ss: ""
+    buffer_5p_seq : ""
+    buffer_5p_ss : ""
+    buffer_3p_seq: ""
+    buffer_3p_ss: ""
+    length : -999
+  P3EXT:
+    name: ""
+    sequence: ""
+    structure: ""
+  P3:
+    name: ""
+    sequence: ""
+    structure: ""
+

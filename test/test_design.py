@@ -1,41 +1,86 @@
 import pandas as pd
-import os
-import pytest
-from rna_lib_design import design, structure, structure_set, settings, testing
-from click.testing import CliRunner
+from seq_tools import SequenceStructure
+from rna_lib_design.design import (
+    parse_build_str,
+    Designer,
+)
+from rna_lib_design.settings import get_resources_path, get_test_path
 
-TEST_RESOURCES = settings.RESOURCES_PATH + "/testing/"
+
+class TestResources:
+    @staticmethod
+    def get_complex_params():
+        params = {
+            "P5": {"name": "org_minittr_pool_rev_seq_primer"},
+            "P3": {"name": "rt_tail"},
+            "HPBARCODE": {
+                "m_type": "HAIRPIN",
+                "length": "5",
+                "loop_seq": "CAAAG",
+                "loop_ss": "(...)",
+            },
+            "HBARCODE6": {"m_type": "HELIX", "length": "6"},
+            "AC": {"sequence": "AC", "structure": ".."},
+        }
+        return params
+
+    @staticmethod
+    def get_simple_sequence_df():
+        return pd.DataFrame(
+            {
+                "sequence": ["GGGAAAACCC"],
+                "structure": ["(((....)))"],
+            }
+        )
+
+
+class TestParseBuildStr:
+    def test_basic_sequence_string(self):
+        seq_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+        expected_order = {
+            "HPBARCODE": -2,
+            "HBARCODE6": 1,
+            "AC": 2,
+            "P5": -3,
+            "P3": 3,
+        }
+        assert parse_build_str(seq_str) == expected_order
+
+    def test_single_helix_sequence_string(self):
+        seq_str = "H1A-SOI-H1B"
+        expected_order = {"H1": 1}
+        assert parse_build_str(seq_str) == expected_order
+
+    def test_multi_helix_sequence_string(self):
+        seq_str = "H1A-SOI-AC-H1B"
+        expected_order = {"H1": 2, "AC": 1}
+        assert parse_build_str(seq_str) == expected_order
+
+    def test_multi_hairpin_sequence_string(self):
+        seq_str = "HP1-SOI-HP2-AC"
+        expected_order = {"HP1": -1, "HP2": 1, "AC": 2}
+        assert parse_build_str(seq_str) == expected_order
+
+    def test_helix_with_a_and_b(self):
+        seq_str = "H1A-SOI-H1B"
+        expected_order = {"H1": 1}
+        assert parse_build_str(seq_str) == expected_order
+
+    def test_multi_helix_with_a_and_b(self):
+        seq_str = "H1A-H2A-SOI-H2B-AC-H1B"
+        expected_order = {"H1": 3, "H2": 1, "AC": 2}
+        assert parse_build_str(seq_str) == expected_order
 
 
 def test_design():
-    rna = structure.rna_structure("GGGGAAAACCCC", "((((....))))")
-    set_1 = testing.get_test_helices()
-    sol = design.get_best_design([set_1], rna, design.DesignOptions())
-    assert sol.design.dot_bracket == "((((((((((....))))))))))"
-    assert sol.ens_defect < 1.0
-
-
-def test_design_2():
-    rna = structure.rna_structure("GGGGAAAACCCC", "((((....))))")
-    set_1 = testing.get_test_helices()
-    set_2 = structure_set.get_common_seq_structure_set("ref_hairpin_5prime")
-    set_3 = structure_set.get_tail_structure_set()
-    sol = design.get_best_design(
-        [set_1, set_2, set_3], rna, design.DesignOptions()
-    )
+    build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+    params = TestResources.get_complex_params()
+    df_sequences = TestResources.get_simple_sequence_df()
+    designer = Designer()
+    results = designer.design(df_sequences, build_str, params)
+    df_results = results.df_results
+    row = df_results.iloc[0]
     assert (
-        sol.design.dot_bracket
-        == "....((((.....))))...((((((((((....))))))))))...................."
+        row["design_sequence"]
+        == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
     )
-    assert sol.ens_defect < 1.0
-
-def test_randomize_helices():
-    seq = "GAGCCUAUGGCUGCCACCCGAGCCCUUGAACUACAGGGAACACUGGAAACAGUACCCCCUGCAAGGGCGUUUGACGGUGGCAGCCUAAGGGCUC"
-    ss = "((((((..((((((((((((((((((((.....(((((...((((....))))...))))))))))))..)))..))))))))))...))))))"
-    exclude = design.str_to_range("1-9,19,43")
-    exclude_seqs = ["GAGCCUAUGG", "CCGAG", "UGGAAACA"]
-    rh = design.HelixRandomizer()
-    r = rh.run(seq, ss, exclude_seqs=exclude_seqs)
-    print(r)
-    #design.randomize_helices(seq, ss, exclude)
-

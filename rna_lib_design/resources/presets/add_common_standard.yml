@@ -1,0 +1,12 @@
+build_str: "P5-P5EXT-SOI-P3EXT-P3"
+segments:
+  P5:
+    name: "uucg_p5_rev_primer"
+  P3:
+    name: "rt_tail"
+  P3EXT:
+    sequence: "AC"
+    structure: ".."
+  P5EXT:
+    sequence: ""
+    structure: ""

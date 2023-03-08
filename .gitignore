@@ -2,6 +2,12 @@
 .idea
 *.ps
 __pycache__
+build/
+dist/
+results/
+old_barcodes/
+.vscode
+.DS_Store
 
 # C extensions
 *.so

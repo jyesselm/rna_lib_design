@@ -1,2 +1,4 @@
 include README.md
 recursive-include rna_lib_design/resources *.csv
+recursive-include rna_lib_design/resources *.json
+recursive-include rna_lib_design/resources *.yml

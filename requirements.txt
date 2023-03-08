@@ -1,11 +1,14 @@
-pandas
-numpy
-xlsxwriter
+colorlog
 click
 cloup
+pandas
+openpyxl
+numpy
 tabulate
 pyyaml
+jsonschema
+tabulate
 # written by our group
 vienna
-rna_seq_tools
+rna_seq_tools @ git+https://github.com/jyesselm/seq_tools@main
 rna_secstruct @ git+https://github.com/jyesselm/rna_secstruct@main
