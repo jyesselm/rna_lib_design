@@ -21,13 +21,14 @@ from rna_lib_design.settings import get_resources_path
 log = get_logger("CLI")
 
 
+# TODO add triming of sequences p5 and p3
 # TODO validate build str does it include everythingp ?
 
 
 def get_preset_parameters(btype: str, barcode_name: str):
     full_name = f"{barcode_name}_{btype}.yml"
     if not (get_resources_path() / "presets" / full_name).exists():
-        presets = get_resources_path() / "presets").glob(f"{barcode_name}*.yml")
+        presets = (get_resources_path() / "presets").glob(f"{barcode_name}*.yml")
         log.error(presets)
         raise ValueError(f"Invalid barcode type: {btype}")
     return get_resources_path() / "presets" / full_name
@@ -84,7 +85,6 @@ def validate_initial_library(csv):
             "The library size difference is too large must be under 10% of the"
             "average length"
         )
-
 
 
 def log_failed_sequences(results):

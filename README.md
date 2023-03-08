@@ -1,5 +1,8 @@
 # rna_lib_design
 
+[![formatting: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+
 This is package is the library design tool for the Yesselman Lab (https://yesselmanlab.com/) 
 
 
@@ -27,3 +30,10 @@ rld --help
 
 
 ```
+
+## things todo 
+get docker working for automated testing
+    allow vienna rna to be installed from source so it works on all operating systems
+new types of barcodes?
+    triple barcoding?
+    double barcodes with single strands?
