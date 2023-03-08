@@ -13,7 +13,7 @@ from rna_lib_design.design import (
     design,
     write_output_dir,
 )
-from seq_tools import calc_edit_distance
+from seq_tools import calc_edit_distance, trim
 from rna_lib_design.logger import get_logger, setup_applevel_logger
 from rna_lib_design.parameters import parse_parameters_from_file
 from rna_lib_design.settings import get_resources_path
@@ -138,6 +138,11 @@ def run_method(method_name, csv, btype, param_file, output, args):
     log.info(f"Using parameters:\n{json.dumps(params, indent=4)}")
     design_opts = DesignOpts(**params["design_opts"])
     df_seqs = pd.read_csv(csv)
+    if args["trim_p5"] != 0 or args["trim_p3"] != 0:
+        log.info(
+            f"trimming sequences by {args['trim_p5']} at 5' and {args['trim_p3']} at 3'"
+        )
+        df_seqs = trim(df_seqs, args["trim_p5"], args["trim_p3"])
     results = design(
         args["num_processes"],
         df_seqs,
@@ -191,6 +196,18 @@ def main_options():
         ),
         option(
             "--skip-edit-dist", is_flag=True, help="skip the edit distance calculation"
+        ),
+        option(
+            "--trim-p5",
+            type=int,
+            default=0,
+            help="trim sequence at 5' end by this length",
+        ),
+        option(
+            "--trim-p3",
+            type=int,
+            default=0,
+            help="trim sequence at 3' end by this length",
         ),
     )
 
@@ -249,6 +266,9 @@ def edit_distance(csv):
 @cli.command()
 @cloup.argument("name", type=str)
 def list(name):
+    """
+    lists resources available
+    """
     setup_applevel_logger()
     seqs = {"p5": "p5_sequences", "p3": "p3_sequences", "loops": "loops"}
     barcodes = {"helix_barcodes": "helices", "sstrand_barcodes": "sstrands"}
