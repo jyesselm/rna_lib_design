@@ -105,10 +105,11 @@ We will use this file as an example for the rest of the documentation.
 
 ### adding commmon sequences 
 The add-common sub command will add 5' and 3' sequences to each sequence in a csv file.
-```
-rld add-common --help
 
-#### command line interface
+
+
+```shell
+rld add-common --help
 
 Usage: rld add-common [OPTIONS] CSV
 

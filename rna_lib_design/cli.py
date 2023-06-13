@@ -83,7 +83,7 @@ def validate_initial_library(csv):
     if max_len - min_len > avg_len * 0.1:
         raise ValueError(
             "The library size difference is too large must be under 10% of the"
-            "average length"
+            "average length, can turn this off with --skip-length-check"
         )
 
 
@@ -111,7 +111,10 @@ def run_method(method_name, csv, btype, param_file, output, args):
     is_valid_method(method_name)
     os.makedirs(output, exist_ok=True)
     setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
-    validate_initial_library(csv)
+    if not args["skip_length_check"]:
+        validate_initial_library(csv)
+    else:
+        log.info("Skipping length check by using --skip-length-check")
     schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
     # setup parameters
     params = {}
@@ -196,6 +199,11 @@ def main_options():
         ),
         option(
             "--skip-edit-dist", is_flag=True, help="skip the edit distance calculation"
+        ),
+        option(
+            "--skip-length-check",
+            is_flag=True,
+            help="skip the check for the length variation of the library",
         ),
         option(
             "--trim-p5",
