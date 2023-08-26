@@ -1,5 +1,9 @@
 import multiprocessing
 from collections import Counter
+import os
+from tabulate import tabulate
+import yaml
+import json
 
 import pandas as pd
 import numpy as np
@@ -14,6 +18,7 @@ from seq_tools import (
     to_dna,
     to_dna_template,
     to_fasta,
+    calc_edit_distance,
 )
 from rna_lib_design.structure_set import (
     SequenceStructure,
@@ -378,6 +383,52 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
                 else:
                     failures[key] = value
         return DesignerResults(pd.concat(dfs), failures)
+
+
+def design_and_save_output(df, output_dir, params):
+    os.makedirs(output_dir, exist_ok=True)
+    design_opts = DesignOpts(**params["design_opts"])
+    yaml.dump(params, open(f"{output_dir}/params.yml", "w"))
+    log.info(f"Using parameters:\n{json.dumps(params, indent=4)}")
+    results = design(
+        params["num_of_processes"],
+        df,
+        params["build_str"],
+        params["segments"],
+        design_opts,
+    )
+    log_failed_design_sequences(results)
+    df_results = results.df_results
+    write_output_dir(df_results, Path(output_dir))
+    if not params["postprocess"]["skip_edit_distance"]:
+        edit_dist = calc_edit_distance(df_results)
+        log.info(f"the edit distance of lib is: {edit_dist}")
+    else:
+        log.info("skipping edit distance calculation")
+    return df_results
+
+
+def log_failed_design_sequences(results) -> None:
+    """
+    add failed sequences to log
+    """
+    df_results = results.df_results
+    failures = results.failures
+    table = []
+    total = 0
+    for key, value in failures.items():
+        if value > 0:
+            table.append([key, value])
+        total += value
+    if len(table) > 0:
+        log.info(
+            "summary of sequences discarded\n"
+            + tabulate(table, headers=["key", "value"], tablefmt="psql")
+        )
+        log.info(f"total sequences discarded: {total}")
+        log.info(f"total remaining sequences: {len(df_results)}")
+    else:
+        log.info("no sequences discarded")
 
 
 def write_output_dir(df: pd.DataFrame, output_dir) -> None:

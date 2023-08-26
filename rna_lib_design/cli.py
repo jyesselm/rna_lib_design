@@ -10,14 +10,18 @@ from pathlib import Path
 
 from rna_lib_design.design import (
     DesignOpts,
-    design,
+    design_and_save_output,
     write_output_dir,
+    log_failed_design_sequences,
 )
 from seq_tools import calc_edit_distance, trim
 from rna_lib_design.logger import get_logger, setup_applevel_logger
-from rna_lib_design.parameters import parse_parameters_from_file, combine_params
+from rna_lib_design.parameters import (
+    parse_parameters_from_file,
+    combine_params,
+    get_preset_parameters,
+)
 from rna_lib_design.settings import get_resources_path
-from rna_lib_design.barcode import get_preset_parameters
 
 log = get_logger("CLI")
 
@@ -64,41 +68,12 @@ def validate_initial_library(csv):
         )
 
 
-def log_failed_sequences(results):
-    df_results = results.df_results
-    failures = results.failures
-    table = []
-    total = 0
-    for key, value in failures.items():
-        if value > 0:
-            table.append([key, value])
-        total += value
-    if len(table) > 0:
-        log.info(
-            "summary of sequences discarded\n"
-            + tabulate(table, headers=["key", "value"], tablefmt="psql")
-        )
-        log.info(f"total sequences discarded: {total}")
-        log.info(f"total remaining sequences: {len(df_results)}")
-    else:
-        log.info("no sequences discarded")
-
-
-def run_method(method_name, csv, btype, param_file, output, args):
+def get_method_params(method_name, btype, param_file, args):
     is_valid_method(method_name)
-    os.makedirs(output, exist_ok=True)
-    setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
-    if not args["skip_length_check"]:
-        validate_initial_library(csv)
-    else:
-        log.info("Skipping length check by using --skip-length-check")
     schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
-    # setup parameters
+    log.info(f"Using schema file: {schema_file}")
     params = {}
-    preset_file = None
-    if btype is None:
-        preset_file = None
-    else:
+    if btype is not None:
         params = get_preset_parameters(btype.lower(), method_name)
     if param_file is not None:
         if len(params) == 0:
@@ -106,38 +81,39 @@ def run_method(method_name, csv, btype, param_file, output, args):
         else:
             user_params = parse_parameters_from_file(param_file, schema_file)
             combine_params(params, user_params)
-    log.info(f"Writing parameters to {output}/params.yml")
-    yaml.dump(params, open(f"{output}/params.yml", "w"))
-    # default to standard preset if no preset or param file is supplied
-    if preset_file is None and param_file is None:
+    else:
         log.info("No preset or param file supplied, using standard preset")
         preset_file = get_resources_path() / "presets" / f"{method_name}_standard.yml"
+        log.info(f"using file {preset_file}")
         params = parse_parameters_from_file(preset_file, schema_file)
     if len(params) == 0:
         raise ValueError("No parameters supplied")
-    log.info(f"Using parameters:\n{json.dumps(params, indent=4)}")
-    design_opts = DesignOpts(**params["design_opts"])
+    # hacky bring back the script that updates this automatically
+    params["debug"] = args["debug"]
+    params["num_of_processes"] = args["num_processes"]
+    params["preprocess"]["trim_p5"] = args["trim_p5"]
+    params["preprocess"]["trim_p3"] = args["trim_p3"]
+    params["preprocess"]["skip_length_check"] = args["skip_length_check"]
+    # params["preprocess"]["skip_edit_distance_check"] = args["skip_edit_distance_check"]
+    params["postprocess"]["skip_edit_distance"] = args["skip_edit_dist"]
+    return params
+
+
+def setup_method(method_name, csv, btype, param_file, output, args):
+    is_valid_method(method_name)
+    os.makedirs(output, exist_ok=True)
+    setup_log_and_log_inputs(csv, btype, param_file, output, args["debug"])
+    params = get_method_params(method_name, btype, param_file, args)
     df_seqs = pd.read_csv(csv)
-    if args["trim_p5"] != 0 or args["trim_p3"] != 0:
+    if params["preprocess"]["trim_p5"] != 0 or params["preprocess"]["trim_p3"] != 0:
         log.info(
-            f"trimming sequences by {args['trim_p5']} at 5' and {args['trim_p3']} at 3'"
+            f"trimming sequences by {params['preprocess']['trim_p5']} at 5' and"
+            f"{params['preprocess']['trim_p3']} at 3'"
         )
-        df_seqs = trim(df_seqs, args["trim_p5"], args["trim_p3"])
-    results = design(
-        args["num_processes"],
-        df_seqs,
-        params["build_str"],
-        params["segments"],
-        design_opts,
-    )
-    log_failed_sequences(results)
-    df_results = results.df_results
-    write_output_dir(df_results, Path(output))
-    if not args["skip_edit_dist"]:
-        edit_dist = calc_edit_distance(df_results)
-        log.info(f"the edit distance of lib is: {edit_dist}")
-    else:
-        log.info("skipping edit distance calculation")
+        df_seqs = trim(
+            df_seqs, params["preprocess"]["trim_p5"], params["preprocess"]["trim_p3"]
+        )
+    return params, df_seqs
 
 
 # cli commands ########################################################################
@@ -213,7 +189,8 @@ def add_common(csv, btype, param_file, output, **args):
     """
     add common p5/p3 sequences
     """
-    run_method("add_common", csv, btype, param_file, output, args)
+    params, df_seqs = setup_method("add_common", csv, btype, param_file, output, args)
+    design_and_save_output(df_seqs, output, params)
 
 
 @cli.command()
@@ -223,7 +200,10 @@ def barcode(csv, btype, param_file, output, **args):
     """
     adds a single barcode
     """
-    run_method("single_barcode", csv, btype, param_file, output, args)
+    params, df_seqs = setup_method(
+        "single_barcode", csv, btype, param_file, output, args
+    )
+    design_and_save_output(df_seqs, output, params)
 
 
 @cli.command()
@@ -233,7 +213,10 @@ def barcode2(csv, btype, param_file, output, **args):
     """
     adds two barcodes
     """
-    run_method("double_barcode", csv, btype, param_file, output, args)
+    params, df_seqs = setup_method(
+        "double_barcode", csv, btype, param_file, output, args
+    )
+    design_and_save_output(df_seqs, output, params)
 
 
 @cli.command()

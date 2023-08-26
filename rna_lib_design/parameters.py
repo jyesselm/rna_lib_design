@@ -49,7 +49,18 @@ def validate_parameters(params, schema):
     # check to make sure each segment dict is valid
     if "segments" not in params:
         return
-    for name, segment in params["segments"].items():
+    used_segments = params["build_str"].split("-")
+    segments = params["segments"].copy()
+    for name, segment in segments.items():
+        found = 0
+        # make sure to catch BARCODE1A and BARCODE1B
+        for used_segment in used_segments:
+            if used_segment.startswith(name):
+                found = 1
+                break
+        if not found:
+            del params["segments"][name]
+            continue
         log.debug(name)
         validate_segment_parameters(segment)
 
@@ -109,3 +120,18 @@ def combine_params(original_dict, new_dict):
                     )
             original_dict[key] = value
     return original_dict
+
+
+def get_preset_parameters(btype: str, barcode_name: str):
+    """
+    get the preset parameters for a given barcode type and name
+    """
+    full_name = f"{barcode_name}_{btype}.yml"
+    if not (get_resources_path() / "presets" / full_name).exists():
+        presets = (get_resources_path() / "presets").glob(f"{barcode_name}*.yml")
+        log.error(presets)
+        raise ValueError(f"Invalid barcode type: {btype}")
+    schema_file = get_resources_path() / "schemas" / f"{barcode_name}.json"
+    params_file = get_resources_path() / "presets" / full_name
+    params = parse_parameters_from_file(params_file, schema_file)
+    return params

@@ -1,6 +1,13 @@
 build_str: "P5-P5EXT-BARCODE1A-SOI-BARCODE1-P3EXT-P3"
-trim_5p : -999
-trim_3p: -999
+debug: false
+num_of_processes: 1
+preprocess:
+  trim_5p : -999
+  trim_3p: -999
+  skip_length_check: false
+  skip_edit_distance_check: false
+postprocess:
+  skip_edit_distance: false 
 design_opts:
   increase_ens_defect : 2.0
   max_ens_defect: 5.0

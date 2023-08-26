@@ -5,11 +5,47 @@
             "type": "string",
             "default": "P5-P5EXT-SOI-P3EXT-P3"
         },
-        "trim_5p": {
-            "type": "integer"
+        "debug": {
+            "type": "boolean",
+            "default": false
         },
-        "trim_3p": {
-            "type": "integer"
+        "num_of_processes": {
+            "type": "integer",
+            "default": 1
+        },
+        "preprocess": {
+            "type": "object",
+            "properties": {
+                "trim_5p": {
+                    "type": "integer"
+                },
+                "trim_3p": {
+                    "type": "integer"
+                },
+                "skip_length_check": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "skip_edit_distance_check": {
+                    "type": "boolean",
+                    "default": false
+                }
+            },
+            "default": {},
+            "additionalProperties": false,
+            "required": []
+        },
+        "postprocess": {
+            "type": "object",
+            "properties": {
+                "skip_edit_distance": {
+                    "type": "boolean",
+                    "default": false
+                }
+            },
+            "default": {},
+            "additionalProperties": false,
+            "required": []
         },
         "design_opts": {
             "type": "object",
@@ -67,7 +103,7 @@
                     "additionalProperties": false,
                     "required": []
                 },
-                "P3": {
+                "P5EXT": {
                     "type": "object",
                     "properties": {
                         "name": {
@@ -84,7 +120,7 @@
                     "additionalProperties": false,
                     "required": []
                 },
-                "P5EXT": {
+                "P3": {
                     "type": "object",
                     "properties": {
                         "name": {
