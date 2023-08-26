@@ -15,38 +15,15 @@ from rna_lib_design.design import (
 )
 from seq_tools import calc_edit_distance, trim
 from rna_lib_design.logger import get_logger, setup_applevel_logger
-from rna_lib_design.parameters import parse_parameters_from_file
+from rna_lib_design.parameters import parse_parameters_from_file, combine_params
 from rna_lib_design.settings import get_resources_path
+from rna_lib_design.barcode import get_preset_parameters
 
 log = get_logger("CLI")
 
 
 # TODO add triming of sequences p5 and p3
 # TODO validate build str does it include everythingp ?
-
-
-def get_preset_parameters(btype: str, barcode_name: str):
-    full_name = f"{barcode_name}_{btype}.yml"
-    if not (get_resources_path() / "presets" / full_name).exists():
-        presets = (get_resources_path() / "presets").glob(f"{barcode_name}*.yml")
-        log.error(presets)
-        raise ValueError(f"Invalid barcode type: {btype}")
-    return get_resources_path() / "presets" / full_name
-
-
-def merge_dict(original_dict, new_dict):
-    for key, value in new_dict.items():
-        if isinstance(value, dict):
-            original_dict[key] = merge_dict(original_dict.get(key, {}), value)
-        else:
-            # safe guard since this might really miss stuff up
-            if key == "m_type":
-                if original_dict[key] != value:
-                    raise ValueError(
-                        f"Cannot change m_type from {original_dict[key]} to {value}"
-                    )
-            original_dict[key] = value
-    return original_dict
 
 
 def setup_log_and_log_inputs(csv, preset, param_file, output, debug):
@@ -118,17 +95,17 @@ def run_method(method_name, csv, btype, param_file, output, args):
     schema_file = get_resources_path() / "schemas" / f"{method_name}.json"
     # setup parameters
     params = {}
+    preset_file = None
     if btype is None:
         preset_file = None
     else:
-        preset_file = get_preset_parameters(btype.lower(), method_name)
-        params = parse_parameters_from_file(preset_file, schema_file)
+        params = get_preset_parameters(btype.lower(), method_name)
     if param_file is not None:
         if len(params) == 0:
             params = parse_parameters_from_file(param_file, schema_file)
         else:
             user_params = parse_parameters_from_file(param_file, schema_file)
-            merge_dict(params, user_params)
+            combine_params(params, user_params)
     log.info(f"Writing parameters to {output}/params.yml")
     yaml.dump(params, open(f"{output}/params.yml", "w"))
     # default to standard preset if no preset or param file is supplied

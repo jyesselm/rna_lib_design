@@ -125,9 +125,15 @@ class Designer:
             if count % 100 == 0 and count > 0:
                 log.info(f"processed {count} sequences")
                 print(f"processed {count} sequences")
-            soi_seq_struct = SequenceStructure(
-                row["org_sequence"], row["org_structure"]
-            )
+            try:
+                soi_seq_struct = SequenceStructure(
+                    row["org_sequence"], row["org_structure"]
+                )
+            except:
+                log.error(
+                    f"failed process {row['name'] }{row['org_sequence']} - {row['org_structure']} skipping"
+                )
+                continue
             seq_struct, iterating_sets = self.__setup_seq_struct(
                 soi_seq_struct, build_up
             )

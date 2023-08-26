@@ -2,13 +2,16 @@ import yaml
 import json
 import jsonschema
 from jsonschema import Draft4Validator, validators
-from rna_lib_design.settings import get_py_path
+from rna_lib_design.settings import get_py_path, get_resources_path
 from rna_lib_design.logger import get_logger
 
 log = get_logger("PARAMETERS")
 
 
 def extend_with_default(validator_class):
+    """
+    a wrapper to add default values to the schema
+    """
     validate_properties = validator_class.VALIDATORS["properties"]
 
     def set_defaults(validator, properties, instance, schema):
@@ -34,6 +37,7 @@ def validate_parameters(params, schema):
     """
     Validate the parameters against a schema
     :params: parameters in dictionary form
+    :schema: schema in dictionary form
     """
     # Validate the params against the schema
     FillDefaultValidatingDraft4Validator = extend_with_default(Draft4Validator)
@@ -90,3 +94,18 @@ def parse_parameters_from_file(param_file, schema_file):
         schema = json.load(f)
     validate_parameters(params, schema)
     return params
+
+
+def combine_params(original_dict, new_dict):
+    for key, value in new_dict.items():
+        if isinstance(value, dict):
+            original_dict[key] = combine_params(original_dict.get(key, {}), value)
+        else:
+            # safe guard since this might really miss stuff up
+            if key == "m_type":
+                if original_dict[key] != value:
+                    raise ValueError(
+                        f"Cannot change m_type from {original_dict[key]} to {value}"
+                    )
+            original_dict[key] = value
+    return original_dict
