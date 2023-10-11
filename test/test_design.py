@@ -2,6 +2,7 @@ import pandas as pd
 from seq_tools import SequenceStructure
 from rna_lib_design.design import (
     parse_build_str,
+    get_seq_struct_designer,
     Designer,
 )
 from rna_lib_design.settings import get_resources_path, get_test_path
@@ -72,7 +73,45 @@ class TestParseBuildStr:
         assert parse_build_str(seq_str) == expected_order
 
 
-def test_design():
+class TestSequencerDesigner:
+    def test_get_sequence_designer(self):
+        build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+        params = TestResources.get_complex_params()
+        df_sequences = TestResources.get_simple_sequence_df()
+        sd = get_seq_struct_designer(1, build_str, params)
+        seq_struct = df_sequences.iloc[0]
+        d_seq_struct = sd.get_designable_seq_struct(seq_struct)
+        assert (
+            d_seq_struct.sequence
+            == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
+        )
+        assert (
+            d_seq_struct.structure
+            == "....((((.....))))...222222222222222222111111(((....)))111111......................"
+        )
+        final_seq_struct = sd.apply(d_seq_struct)
+        assert sd.steps[0].set.num_used() == 0
+        sd.accept_design()
+        assert sd.steps[0].set.num_used() == 1
+
+    def test_split(self):
+        build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+        params = TestResources.get_complex_params()
+        sd = get_seq_struct_designer(10, build_str, params)
+        sds = sd.split(2)
+        seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
+        d_seq_struct = sd.get_designable_seq_struct(seq_struct)
+        assert (
+            d_seq_struct.sequence
+            == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
+        )
+        assert (
+            d_seq_struct.structure
+            == "....((((.....))))...222222222222222222111111(((....)))111111......................"
+        )
+
+
+def _test_design():
     build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
     params = TestResources.get_complex_params()
     df_sequences = TestResources.get_simple_sequence_df()

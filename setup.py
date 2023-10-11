@@ -20,6 +20,6 @@ setup(
         "rna_lib_design/util",
     ],
     include_package_data=True,
-    install_requires=requirements,
+    #install_requires=requirements,
     entry_points={"console_scripts": ["rld = rna_lib_design.cli:cli"]},
 )

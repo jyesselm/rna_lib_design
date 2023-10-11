@@ -1,7 +1,9 @@
 from typing import List, Dict
 import re
 import pandas as pd
+import numpy as np
 from numpy import random
+from dataclasses import dataclass
 
 from seq_tools import SequenceStructure
 
@@ -9,6 +11,12 @@ from rna_lib_design.logger import get_logger
 from rna_lib_design.settings import get_resources_path
 
 log = get_logger("SSET")
+
+
+def divide_chunks(l, n):
+    # looping till length l
+    for i in range(0, len(l), n):
+        yield l[i : i + n]
 
 
 def str_to_range(x):
@@ -41,6 +49,8 @@ class SequenceStructureSet:
     """
 
     def __init__(self, seqstructs: List[SequenceStructure]):
+        if len(seqstructs) == 0:
+            raise ValueError("seqstructs must have at least one SequenceStructure")
         self.seqstructs = seqstructs
         self.used = [False] * len(seqstructs)
         self.allow_duplicates = False
@@ -53,7 +63,7 @@ class SequenceStructureSet:
         """
         df = pd.read_csv(csv_path)
         seqstructs = []
-        for index, row in df.iterrows():
+        for _, row in df.iterrows():
             seqstructs.append(SequenceStructure(row["sequence"], row["structure"]))
         return cls(seqstructs)
 
@@ -93,6 +103,29 @@ class SequenceStructureSet:
     def set_last_used(self) -> None:
         if self.last is not None:
             self.used[self.last] = True
+
+    def split(self, num_sets: int):
+        """
+        Splits the SequenceStructureSet into a list of SequenceStructureSets.
+        """
+
+        # if just 1 then we need to just distribute to each split set
+        if len(self.seqstructs) == 1:
+            split_sets = []
+            for i in range(num_sets):
+                split_sets.append(SequenceStructureSet([self.seqstructs[0]]))
+            return split_sets
+
+        if num_sets > len(self.seqstructs):
+            raise ValueError(
+                "num_sets must be less than or equal to the number of sets"
+            )
+        random.shuffle(self.seqstructs)
+        seq_struct_splits = divide_chunks(self.seqstructs, num_sets)
+        return [SequenceStructureSet(s) for s in seq_struct_splits]
+
+    def num_used(self):
+        return sum(self.used)
 
 
 class SequenceStructureSetParser:
@@ -167,12 +200,12 @@ class SequenceStructureSetParser:
         self, name, num_seqs, lengths, params: Dict
     ) -> SequenceStructureSet:
         log.info(f"{name} structure type is sstrand")
-        sets = SequenceStructureSet([])
+        sets = None
         for length in lengths:
             if sets is None:
                 sets = get_optimal_sstrand_set(length, num_seqs)
             else:
-                sets = sets + get_optimal_sstrand_set(length, num_seqs)
+                sets += sets + get_optimal_sstrand_set(length, num_seqs)
         log.info(f"{name} has {len(sets)} sstrand structures")
         return sets
 
@@ -205,7 +238,7 @@ class SequenceStructureSetParser:
         gu = True
         if "gu" in params:
             gu = params["gu"]
-        sets = SequenceStructureSet([])
+        sets = None
         for length in lengths:
             if sets is None:
                 sets = get_optimal_hairpin_set(

@@ -8,6 +8,9 @@ from rna_lib_design.structure_set import (
     SequenceStructureSetParser,
     get_named_seq_structs,
     get_named_seq_struct,
+    get_optimal_sstrand_set,
+    get_optimal_helix_set,
+    get_optimal_hairpin_set,
 )
 
 TEST_RESOURCES = get_test_path() / "resources"
@@ -151,3 +154,22 @@ class TestNamedSequenceStructure:
     def test_get_one_not_found(self):
         with pytest.raises(ValueError):
             get_named_seq_struct("not_a_real_name")
+
+
+def test_get_optimal_sstrand_set():
+    sset = get_optimal_sstrand_set(5, 10)
+    assert len(sset) == 32
+
+
+def test_split_set():
+    csv_path = get_resources_path() / "barcodes/helices/len_1/md_0_gu_0_0.csv"
+    sss = SequenceStructureSet.from_csv(csv_path)
+    sets = sss.split(2)
+    assert len(sets) == 2
+    assert len(sets[0]) == 2
+
+
+def test_split_single_set():
+    seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
+    sss = SequenceStructureSet.from_single(seq_struct)
+    sets = sss.split(2)

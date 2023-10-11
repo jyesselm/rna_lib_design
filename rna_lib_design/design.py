@@ -8,6 +8,7 @@ import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from typing import List
 
 from dataclasses import dataclass
 from vienna import fold
@@ -24,6 +25,8 @@ from rna_lib_design.structure_set import (
     SequenceStructure,
     SequenceStructureSetParser,
 )
+from rna_lib_design.structure_set import SequenceStructureSet, SequenceStructure
+
 from rna_lib_design.logger import get_logger
 from rna_lib_design.util import get_seq_fwd_primer
 
@@ -71,24 +74,74 @@ def parse_build_str(seq_str):
     return order
 
 
-@dataclass(frozen=True, order=True)
-class DesignOpts:
-    increase_ens_defect: float = 2.0
-    max_ens_defect: float = 5.0
-    max_attempts: int = 10
-    max_solutions: int = 10
-    score_method: str = "increase"
-    allowed_ss_mismatch: int = 2
-    allowed_ss_mismatch_barcodes: int = 2
+class SeqStructDesignStep:
+    def __init__(self, direction, name, cur_set, symbol):
+        self.direction = direction
+        self.name = name
+        self.set = cur_set
+        self.symbol = symbol
+        self.length = len(cur_set.get_random().split_strands()[0])
+        self.last: SequenceStructure = None
+        self.symbol_str = symbol * self.length
+        self.is_single = 0
+        if len(self.set) == 1:
+            self.is_single = 1
+
+    def split(self, n_splits):
+        sets = self.set.split(n_splits)
+        return [
+            SeqStructDesignStep(self.direction, self.name, s, self.symbol) for s in sets
+        ]
+
+    def get_designable_seq_struct(self, seq_struct):
+        """
+        Adds the sequence and structure of the current step to the target sequence
+        structure. If there are more than one possible sequences in the set, then
+        add a symbol to the sequence and structure to indicate that the sequence
+        and structure are not yet known.
+        """
+        ss = self.set.get_random()
+        if self.direction == "HELIX":
+            if self.is_single:
+                seq_struct = ss.split_strands()[0] + seq_struct + ss.split_strands()[1]
+            else:
+                seq = self.symbol_str + "&" + self.symbol_str
+                h_seq_struct = SequenceStructure(seq, seq).split_strands()
+                seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
+        elif self.direction == "5PRIME":
+            if self.is_single:
+                seq_struct = ss + seq_struct
+            else:
+                seq_struct = (
+                    SequenceStructure(self.symbol_str, self.symbol_str) + seq_struct
+                )
+        elif self.direction == "3PRIME":
+            if self.is_single:
+                seq_struct = seq_struct + ss
+            else:
+                seq_struct = seq_struct + SequenceStructure(
+                    self.symbol_str, self.symbol_str
+                )
+        return seq_struct
+
+    def apply(self, d_seq_struct):
+        ss = self.set.get_random()
+        for strand in ss.split_strands():
+            sequence = d_seq_struct.sequence.replace(
+                self.symbol_str, strand.sequence, 1
+            )
+            structure = d_seq_struct.structure.replace(
+                self.symbol_str, strand.structure, 1
+            )
+            d_seq_struct = SequenceStructure(sequence, structure)
+        self.last = ss
+        return d_seq_struct
+
+    def accept_design(self):
+        self.set.set_used(self.last)
 
 
-@dataclass(frozen=True, order=True)
-class DesignerResults:
-    df_results: pd.DataFrame
-    failures: dict
-
-
-class Designer:
+class SeqStructDesigner(object):
     def __init__(self):
         self.symbols = [
             "1",
@@ -111,6 +164,97 @@ class Designer:
             "D",
             "F",
         ]
+        self.symbol_count = 0
+        self.steps: List[SeqStructDesignStep] = []
+
+    def __len__(self):
+        return len(self.steps)
+
+    def split(self, n_splits):
+        steps = []
+        for step in self.steps:
+            steps.append(step.split(n_splits))
+        designers = []
+        for i in range(0, n_splits):
+            d = SeqStructDesigner()
+            for step in steps:
+                d.steps.append(step[i])
+            designers.append(d)
+        return designers
+
+    def add_step(self, direction, name, set):
+        self.steps.append(
+            SeqStructDesignStep(direction, name, set, self.symbols[self.symbol_count])
+        )
+        self.symbol_count += 1
+
+    def get_designable_seq_struct(self, seq_struct):
+        for step in self.steps:
+            seq_struct = step.get_designable_seq_struct(seq_struct)
+        return seq_struct
+
+    def apply(self, d_seq_struct):
+        for step in self.steps:
+            d_seq_struct = step.apply(d_seq_struct)
+        return d_seq_struct
+
+    def accept_design(self):
+        for step in self.steps:
+            step.accept_design()
+
+
+def get_seq_struct_designer(num_seqs, build_str, params) -> SeqStructDesigner:
+    parser = SequenceStructureSetParser()
+    sets = parser.parse(num_seqs, params)
+    segments = parse_build_str(build_str)
+    sd = SeqStructDesigner()
+    pos = 1
+    seen = []
+    while True:
+        found = False
+        for seg_name, seg_pos in segments.items():
+            if pos != abs(seg_pos):
+                continue
+            if seg_name in seen:
+                continue
+            if seg_name not in sets:
+                raise ValueError(f"no set for {seg_name}")
+            found = True
+            seen.append(seg_name)
+            direction = "3PRIME"
+            if seg_pos < 0:
+                direction = "5PRIME"
+            cur_set = sets[seg_name]
+            # hacky way to check if helix
+            if cur_set.get_random().sequence.count("&") > 0:
+                direction = "HELIX"
+            sd.add_step(direction, seg_name, cur_set)
+        if not found:
+            pos += 1
+        if len(seen) == len(segments):
+            break
+    return sd
+
+
+@dataclass(frozen=True, order=True)
+class DesignOpts:
+    increase_ens_defect: float = 2.0
+    max_ens_defect: float = 5.0
+    max_attempts: int = 10
+    max_solutions: int = 10
+    score_method: str = "increase"
+    allowed_ss_mismatch: int = 2
+    allowed_ss_mismatch_barcodes: int = 2
+
+
+@dataclass(frozen=True, order=True)
+class DesignerResults:
+    df_results: pd.DataFrame
+    failures: dict
+
+
+class Designer:
+    def __init__(self):
         self.opts = DesignOpts()
         self.failures = {
             "high_ens_defect": 0,
@@ -118,12 +262,15 @@ class Designer:
             "ss_mismatches_barcodes": 0,
         }
 
-    def setup(self, opts: DesignOpts):
+    def setup(
+        self,
+        opts: DesignOpts,
+    ):
         self.opts = opts
 
-    def design(self, df_sequences, build_str, params):
+    def design(self, df_sequences, seq_struct_designer, params):
+        self.designer = seq_struct_designer
         df_results = self.__setup_dataframe(df_sequences)
-        build_up = self.__get_build_up(len(df_sequences), build_str, params)
         count = -1
         for i, row in df_results.iterrows():
             count += 1
@@ -140,7 +287,7 @@ class Designer:
                 )
                 continue
             seq_struct, iterating_sets = self.__setup_seq_struct(
-                soi_seq_struct, build_up
+                soi_seq_struct, self.build_up
             )
             df_results.at[i, "design_sequence"] = seq_struct.sequence
             df_results.at[i, "design_structure"] = seq_struct.structure
@@ -272,73 +419,6 @@ class Designer:
             return "ss_mismatch_barcodes"
         return "SUCCESS"
 
-    def __get_build_up(self, num_seqs, build_str, params):
-        parser = SequenceStructureSetParser()
-        sets = parser.parse(num_seqs, params)
-        segments = parse_build_str(build_str)
-        pos = 1
-        seen = []
-        build_up = []
-        while True:
-            found = False
-            for seg_name, seg_pos in segments.items():
-                if pos != abs(seg_pos):
-                    continue
-                if seg_name in seen:
-                    continue
-                if seg_name not in sets:
-                    raise ValueError(f"no set for {seg_name}")
-                found = True
-                seen.append(seg_name)
-                direction = "3PRIME"
-                if seg_pos < 0:
-                    direction = "5PRIME"
-                cur_set = sets[seg_name]
-                # hacky way to check if helix
-                if cur_set.get_random().sequence.count("&") > 0:
-                    direction = "HELIX"
-                build_up.append((direction, seg_name, cur_set))
-            if not found:
-                pos += 1
-            if len(seen) == len(segments):
-                break
-
-        return build_up
-
-    def __setup_seq_struct(self, seq_struct, build_up):
-        iterating_sets = []
-        pos = -1
-        for direction, seg_name, cur_set in build_up:
-            pos += 1
-            symbol = self.symbols[pos]
-            if direction == "HELIX":
-                if len(cur_set) > 1:
-                    length = len(cur_set.get_random().split_strands()[0])
-                    seq = symbol * length + "&" + symbol * length
-                    h_seq_struct = SequenceStructure(seq, seq).split_strands()
-                    seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
-                    iterating_sets.append([[symbol * length, symbol * length], cur_set])
-                else:
-                    h_seq_struct = cur_set.get_random().split_strands()
-                    seq_struct = h_seq_struct[0] + seq_struct + h_seq_struct[1]
-            elif direction == "5PRIME":
-                if len(cur_set) > 1:
-                    seq = symbol * len(cur_set.get_random())
-                    seq_struct = SequenceStructure(seq, seq) + seq_struct
-                    iterating_sets.append([[seq], cur_set])
-                else:
-                    seq_struct = cur_set.get_random() + seq_struct
-            elif direction == "3PRIME":
-                if len(cur_set) > 1:
-                    seq = symbol * len(cur_set.get_random())
-                    seq_struct = seq_struct + SequenceStructure(seq, seq)
-                    iterating_sets.append([[seq], cur_set])
-                else:
-                    seq_struct = seq_struct + cur_set.get_random()
-            else:
-                raise ValueError(f"unknown direction {direction}")
-        return seq_struct, iterating_sets
-
 
 # design interface to be used with single core or multicore
 def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.DataFrame:
@@ -358,20 +438,18 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
         log.info("no 'name' column was in dataframe - adding one")
         df_sequences["name"] = [f"seq_{i}" for i in range(0, len(df_sequences))]
     designer = Designer()
-    designer.setup(design_opts)
+    designer.setup(design_opts, len(df_sequences) / n_processes, build_str, params)
     # single core run
     if n_processes == 1:
         log.info("running on single core")
         return designer.design(df_sequences, build_str, params)
     # multicore runs
     log.info(f"running on {n_processes} cores with mutliprocessing")
+    arg_2 = 2
     with multiprocessing.Pool(n_processes) as pool:
         results = pool.starmap(
             designer.design,
-            [
-                (df_s, build_str, params)
-                for df_s in np.array_split(df_sequences, n_processes)
-            ],
+            [(df_s, arg_2) for df_s in np.array_split(df_sequences, n_processes)],
         )
         dfs = []
         failures = {}
