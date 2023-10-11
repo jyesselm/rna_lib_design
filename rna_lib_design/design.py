@@ -299,6 +299,7 @@ class Designer:
             count += 1
             if count % 100 == 0 and count > 0:
                 log.info(f"processed {count} sequences")
+                print(f"processed {count} sequences")
             try:
                 soi_seq_struct = SequenceStructure(
                     row["org_sequence"], row["org_structure"]

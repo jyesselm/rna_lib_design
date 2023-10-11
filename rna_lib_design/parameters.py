@@ -135,3 +135,13 @@ def get_preset_parameters(btype: str, barcode_name: str):
     params_file = get_resources_path() / "presets" / full_name
     params = parse_parameters_from_file(params_file, schema_file)
     return params
+
+
+def get_params_from_file(btype: str, barcode_name: str, params_file: str):
+    """
+    get params from file and combine with preset params
+    """
+    preset_params = get_preset_parameters(btype, barcode_name)
+    schema_file = get_resources_path() / "schemas" / f"{barcode_name}.json"
+    user_params = parse_parameters_from_file(params_file, schema_file)
+    return combine_params(preset_params, user_params)
