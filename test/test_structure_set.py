@@ -173,3 +173,6 @@ def test_split_single_set():
     seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
     sss = SequenceStructureSet.from_single(seq_struct)
     sets = sss.split(2)
+    sets[0].set_used(sets[0].get_random())
+    assert sets[0].num_available() == 1
+    assert sets[0].num_used() == 0

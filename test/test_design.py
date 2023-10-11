@@ -3,7 +3,9 @@ from seq_tools import SequenceStructure
 from rna_lib_design.design import (
     parse_build_str,
     get_seq_struct_designer,
+    design,
     Designer,
+    DesignOpts,
 )
 from rna_lib_design.settings import get_resources_path, get_test_path
 
@@ -100,7 +102,7 @@ class TestSequencerDesigner:
         sd = get_seq_struct_designer(10, build_str, params)
         sds = sd.split(2)
         seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
-        d_seq_struct = sd.get_designable_seq_struct(seq_struct)
+        d_seq_struct = sds[0].get_designable_seq_struct(seq_struct)
         assert (
             d_seq_struct.sequence
             == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
@@ -110,16 +112,43 @@ class TestSequencerDesigner:
             == "....((((.....))))...222222222222222222111111(((....)))111111......................"
         )
 
+    def test_get_solution(self):
+        build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+        params = TestResources.get_complex_params()
+        sd = get_seq_struct_designer(10, build_str, params)
+        seq_struct = SequenceStructure("GGGAAAACCC", "(((....)))")
+        d_seq_struct = sd.get_designable_seq_struct(seq_struct)
+        sd.apply(d_seq_struct)
+        solution = sd.get_solution()
+        sd.accept_previous_solution(solution)
+        assert sd.steps[0].set.num_used() == 1
 
-def _test_design():
+
+def _test_designer():
     build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
     params = TestResources.get_complex_params()
     df_sequences = TestResources.get_simple_sequence_df()
+    sd = get_seq_struct_designer(len(df_sequences), build_str, params)
     designer = Designer()
-    results = designer.design(df_sequences, build_str, params)
+    results = designer.design(df_sequences, sd)
     df_results = results.df_results
     row = df_results.iloc[0]
     assert (
         row["design_sequence"]
         == "GGAAGAUCGAGUAGAUCAAA222222222222222222111111GGGAAAACCC111111ACAAAGAAACAACAACAACAAC"
     )
+
+
+def _test_design():
+    build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+    params = TestResources.get_complex_params()
+    df_sequences = TestResources.get_simple_sequence_df()
+    results = design(1, df_sequences, build_str, params, DesignOpts())
+    assert len(results.df_results) == 1
+
+
+def test_design_w_multithreading():
+    build_str = "P5-HPBARCODE-HBARCODE6A-SOI-HBARCODE6B-AC-P3"
+    params = TestResources.get_complex_params()
+    df_sequences = pd.read_csv(get_test_path() / "resources/libs/C0098.csv")
+    results = design(2, df_sequences, build_str, params, DesignOpts())

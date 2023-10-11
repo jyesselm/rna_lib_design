@@ -75,6 +75,14 @@ def parse_build_str(seq_str):
 
 
 class SeqStructDesignStep:
+    """
+    One step in seq struct designer. A step is a direction, name, and set of
+    sequence structures. The step is applied to a sequence structure to add
+    the sequence and structure of the step to the sequence structure. Should not
+    be used without the SeqStructDesigner class
+
+    """
+
     def __init__(self, direction, name, cur_set, symbol):
         self.direction = direction
         self.name = name
@@ -86,6 +94,7 @@ class SeqStructDesignStep:
         self.is_single = 0
         if len(self.set) == 1:
             self.is_single = 1
+            self.last = self.set.get_random()
 
     def split(self, n_splits):
         sets = self.set.split(n_splits)
@@ -142,6 +151,13 @@ class SeqStructDesignStep:
 
 
 class SeqStructDesigner(object):
+    """
+    Handles the design of a sequence structure. The design is done in steps
+    where each step is a direction, name, and set of sequence structures. The
+    steps are applied to a sequence structure to add the sequence and structure
+    of the step to the sequence structure.
+    """
+
     def __init__(self):
         self.symbols = [
             "1",
@@ -201,6 +217,13 @@ class SeqStructDesigner(object):
     def accept_design(self):
         for step in self.steps:
             step.accept_design()
+
+    def get_solution(self):
+        return [step.last for step in self.steps]
+
+    def accept_previous_solution(self, solution):
+        for i, seq_struct in enumerate(solution):
+            self.steps[i].set.set_used(seq_struct)
 
 
 def get_seq_struct_designer(num_seqs, build_str, params) -> SeqStructDesigner:
@@ -268,15 +291,14 @@ class Designer:
     ):
         self.opts = opts
 
-    def design(self, df_sequences, seq_struct_designer, params):
-        self.designer = seq_struct_designer
+    def design(self, df_sequences, seq_struct_designer):
+        designer = seq_struct_designer
         df_results = self.__setup_dataframe(df_sequences)
         count = -1
         for i, row in df_results.iterrows():
             count += 1
             if count % 100 == 0 and count > 0:
                 log.info(f"processed {count} sequences")
-                print(f"processed {count} sequences")
             try:
                 soi_seq_struct = SequenceStructure(
                     row["org_sequence"], row["org_structure"]
@@ -286,13 +308,11 @@ class Designer:
                     f"failed process {row['name'] }{row['org_sequence']} - {row['org_structure']} skipping"
                 )
                 continue
-            seq_struct, iterating_sets = self.__setup_seq_struct(
-                soi_seq_struct, self.build_up
-            )
-            df_results.at[i, "design_sequence"] = seq_struct.sequence
-            df_results.at[i, "design_structure"] = seq_struct.structure
+            d_seq_struct = designer.get_designable_seq_struct(soi_seq_struct)
+            df_results.at[i, "design_sequence"] = d_seq_struct.sequence
+            df_results.at[i, "design_structure"] = d_seq_struct.structure
             results = self.__get_designed_seq_struct(
-                seq_struct, row["name"], row["org_ens_defect"], iterating_sets
+                designer, d_seq_struct, row["name"], row["org_ens_defect"]
             )
             # no design found
             if results[0] == "":
@@ -338,9 +358,7 @@ class Designer:
         df = df.reindex(col_order + list(df.columns.difference(col_order)), axis=1)
         return df
 
-    def __get_designed_seq_struct(
-        self, seq_struct, name, org_ens_defect, iterating_sets
-    ):
+    def __get_designed_seq_struct(self, designer, d_seq_struct, name, org_ens_defect):
         best = []
         best_seq_struct = SequenceStructure("", "")
         best_r = FoldResults("", 999, 999, [])
@@ -348,33 +366,28 @@ class Designer:
         no_solution = True
         fails = []
         for i in range(0, self.opts.max_attempts):
-            sequence = seq_struct.sequence
-            structure = seq_struct.structure
-            used = []
-            for replace_str, cur_set in iterating_sets:
-                sol = cur_set.get_random()
-                used.append(sol)
-                strands = sol.split_strands()
-                for rs, strand in zip(replace_str, strands):
-                    sequence = sequence.replace(rs, strand.sequence, 1)
-                    structure = structure.replace(rs, strand.structure, 1)
-            r = fold(sequence)
-            result = self.__score_design(structure, seq_struct.structure, r)
+            final_seq_struct = designer.apply(d_seq_struct)
+            r = fold(final_seq_struct.sequence)
+            result = self.__score_design(
+                final_seq_struct.structure, d_seq_struct.structure, r
+            )
             if result != "SUCCESS":
                 fails.append(result)
                 continue
             no_solution = False
             if r.ens_defect < best_r.ens_defect:
                 best_r = r
-                best_seq_struct = SequenceStructure(sequence, r.dot_bracket)
-                best = used
+                best_seq_struct = SequenceStructure(
+                    final_seq_struct.sequence, r.dot_bracket
+                )
+                best = designer.get_solution()
             num_solutions += 1
             if num_solutions >= self.opts.max_solutions:
                 break
         if no_solution:
             count = Counter(fails)
             self.failures[count.most_common(1)[0][0]] += 1
-            log.debug("no design found for sequence: " + seq_struct.sequence)
+            log.debug("no design found for sequence: " + d_seq_struct.sequence)
         if self.opts.score_method == "increase":
             diff = best_r.ens_defect - org_ens_defect
             if diff > self.opts.increase_ens_defect:
@@ -390,10 +403,8 @@ class Designer:
                 return ["", "", -999, 999]
         else:
             raise ValueError("unknown score method: " + self.opts.score_method)
-
         if len(best) != 0:
-            for sol, sss in zip(best, iterating_sets):
-                sss[1].set_used(sol)
+            designer.accept_previous_solution(best)
         return [
             best_seq_struct.sequence,
             best_seq_struct.structure,
@@ -420,6 +431,13 @@ class Designer:
         return "SUCCESS"
 
 
+def _design(df_sequences, sd, design_opts):
+    df_sequences = df_sequences.copy()
+    designer = Designer()
+    designer.setup(design_opts)
+    return designer.design(df_sequences, sd)
+
+
 # design interface to be used with single core or multicore
 def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.DataFrame:
     """
@@ -431,25 +449,32 @@ def design(n_processes, df_sequences, build_str, params, design_opts) -> pd.Data
     :param design_opts: design options
     :return: dataframe of designed sequences
     """
+
     log.info("starting design")
     # need to fix this here and not in the design object as it wont work with
     # multiprocessing
     if "name" not in df_sequences.columns:
         log.info("no 'name' column was in dataframe - adding one")
         df_sequences["name"] = [f"seq_{i}" for i in range(0, len(df_sequences))]
+    # generate sequencer designer from params
+    sd = get_seq_struct_designer(len(df_sequences), build_str, params)
+    # setup designer object
     designer = Designer()
-    designer.setup(design_opts, len(df_sequences) / n_processes, build_str, params)
+    designer.setup(design_opts)
     # single core run
     if n_processes == 1:
         log.info("running on single core")
-        return designer.design(df_sequences, build_str, params)
+        return designer.design(df_sequences, sd)
     # multicore runs
     log.info(f"running on {n_processes} cores with mutliprocessing")
-    arg_2 = 2
     with multiprocessing.Pool(n_processes) as pool:
+        sds = sd.split(n_processes)
         results = pool.starmap(
-            designer.design,
-            [(df_s, arg_2) for df_s in np.array_split(df_sequences, n_processes)],
+            _design,
+            [
+                (df_s, sds[i], design_opts)
+                for i, df_s in enumerate(np.array_split(df_sequences, n_processes))
+            ],
         )
         dfs = []
         failures = {}

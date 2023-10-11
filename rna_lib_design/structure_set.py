@@ -13,10 +13,28 @@ from rna_lib_design.settings import get_resources_path
 log = get_logger("SSET")
 
 
-def divide_chunks(l, n):
-    # looping till length l
-    for i in range(0, len(l), n):
-        yield l[i : i + n]
+def split_into_n(lst, n):
+    """
+    Split a list into n sublists with sizes as close to equal as possible.
+
+    Args:
+    - lst (list): The list to be split.
+    - n (int): The number of sublists.
+
+    Returns:
+    - list of lists: The split sublists.
+    """
+    avg = len(lst) // n
+    remainder = len(lst) % n
+    result = []
+    idx = 0
+
+    for i in range(n):
+        size = avg + (1 if i < remainder else 0)
+        result.append(lst[idx : idx + size])
+        idx += size
+
+    return result
 
 
 def str_to_range(x):
@@ -89,11 +107,15 @@ class SequenceStructureSet:
             raise Exception("All SequenceStructures have been used.")
         if len(self.seqstructs) == 1:
             return self.seqstructs[0]
+        count = 0
         while True:
             index = random.randint(0, len(self.seqstructs) - 1)
             if not self.used[index]:
                 self.last = index
                 return self.seqstructs[index]
+            count += 1
+            if count > 10000:
+                raise ValueError("cannot find a random sequence structure")
 
     def set_used(self, sec_struct) -> None:
         index = self.seqstructs.index(sec_struct)
@@ -113,7 +135,9 @@ class SequenceStructureSet:
         if len(self.seqstructs) == 1:
             split_sets = []
             for i in range(num_sets):
-                split_sets.append(SequenceStructureSet([self.seqstructs[0]]))
+                new_set = SequenceStructureSet([self.seqstructs[0]])
+                new_set.allow_duplicates = True
+                split_sets.append(new_set)
             return split_sets
 
         if num_sets > len(self.seqstructs):
@@ -121,11 +145,14 @@ class SequenceStructureSet:
                 "num_sets must be less than or equal to the number of sets"
             )
         random.shuffle(self.seqstructs)
-        seq_struct_splits = divide_chunks(self.seqstructs, num_sets)
+        seq_struct_splits = split_into_n(self.seqstructs, num_sets)
         return [SequenceStructureSet(s) for s in seq_struct_splits]
 
     def num_used(self):
         return sum(self.used)
+
+    def num_available(self):
+        return len(self) - self.num_used()
 
 
 class SequenceStructureSetParser:
