@@ -191,7 +191,7 @@ class SequenceStructureSetParser:
         if "buffer_5p_seq" in params:
             seq = params["buffer_5p_seq"]
             if "buffer_5p_ss" in params:
-                struct = params["buffer_5p_struct"]
+                struct = params["buffer_5p_ss"]
             else:
                 struct = "." * len(seq)
             buffer_5p = SequenceStructure(seq, struct)

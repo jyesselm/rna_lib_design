@@ -201,6 +201,9 @@ class Designer:
                     sequence = sequence.replace(rs, strand.sequence, 1)
                     structure = structure.replace(rs, strand.structure, 1)
             r = fold(sequence)
+            log.debug(f"sequence: {sequence}")
+            log.debug(f"target structure: {structure}")
+            log.debug(f"result structure: {r.dot_bracket}")
             result = self.__score_design(structure, seq_struct.structure, r)
             if result != "SUCCESS":
                 fails.append(result)
